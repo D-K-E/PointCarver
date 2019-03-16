@@ -579,7 +579,8 @@ class SeamMarker:
         for point in plist:
             coord = self.getMarkCoordinates4Point(img, point, isUpTo,
                                                   colSlice, thresh, mark_color)
-            coords.append({point:coord})
+            coords.append({"point": point,
+                           "markCoordinates": coord})
 
         return coords
 

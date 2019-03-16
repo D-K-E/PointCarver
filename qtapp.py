@@ -15,7 +15,6 @@ import json
 import numpy as np
 
 
-
 class AppWindowInit(UIMainWindow):
     """
     Initializes the image window
@@ -51,7 +50,7 @@ class SceneCanvas(QtWidgets.QGraphicsScene):
     def renderPointsInEditor(self):
         "Render points of imagePoint in pointEditor"
         self.editor.clear()
-        pointjson = [{'y': int(p[0]), 
+        pointjson = [{'y': int(p[0]),
                       'x': int(p[1])} for p in self.imagePoint['points']]
         pointjson = json.dumps(pointjson, ensure_ascii=False, indent=2)
         self.editor.setPlainText(pointjson)
@@ -105,14 +104,14 @@ class AppWindowFinal(AppWindowInit):
         self.sceneImagePoint = {"image": QtGui.QPixmap(),
                                 "points": []}
         self.colors = {"red": QtCore.Qt.red,
-                  "black": QtCore.Qt.black,
-                  "green": QtCore.Qt.green,
-                  "yellow": QtCore.Qt.yellow,
-                  "cyan": QtCore.Qt.cyan,
-                  "blue": QtCore.Qt.blue,
-                  "gray": QtCore.Qt.gray,
-                  "magenta": QtCore.Qt.magenta,
-                  "white": QtCore.Qt.white}
+                       "black": QtCore.Qt.black,
+                       "green": QtCore.Qt.green,
+                       "yellow": QtCore.Qt.yellow,
+                       "cyan": QtCore.Qt.cyan,
+                       "blue": QtCore.Qt.blue,
+                       "gray": QtCore.Qt.gray,
+                       "magenta": QtCore.Qt.magenta,
+                       "white": QtCore.Qt.white}
         combovals = list(self.colors.keys())
         self.pointColorComboBox.addItems(combovals)
         self.markColorComboBox.addItems(combovals)
@@ -143,6 +142,9 @@ class AppWindowFinal(AppWindowInit):
         self.drawPointsBtn.clicked.connect(self.drawEditorPoints)
         self.carveBtn.clicked.connect(self.markSeamsOnImage)
         self.savePointsBtn.clicked.connect(self.savePoints)
+        self.saveCoordinatesBtn.clicked.connect(self.saveSeamCoordinates)
+        self.addPoint2ImageBtn.clicked.connect(self.importPoint)
+        self.openPointBtn.clicked.connect(self.openPointInEditor)
 
     def addPointFile2Table(self, imageId,
                            pointFilePath: str):
@@ -222,6 +224,7 @@ class AppWindowFinal(AppWindowInit):
             return
         elif len(items) > 1:
             self.statusbar.showMessage("Please select a single image")
+            return
         #
         imageId = self.tableWidget.indexFromItem(items[0])
         return imageId
@@ -234,28 +237,46 @@ class AppWindowFinal(AppWindowInit):
         #
         fdir = QtWidgets.QFileDialog.getOpenFileNames(
             self.centralwidget,
-            "Select Point Files", "", "Files (*.txt)")
+            "Select Point Files", "", "Json files (*.json)")
         if fdir:
             for pointpath in fdir[0]:
                 self.addPointFile2Table(imageId, pointpath)
 
-    def savePoints(self):
-        "Save points in the editor from file dialog"
-        text = self.pointEditor.toPlainText()
+    def openPointInEditor(self):
+        "Open a point file in point editor"
+        imageId = self.getImageIdFromTable()
+        if imageId is None:
+            return
+        impoint = self.imagePoint[imageId]
+        path = impoint['points']['path']
+        with open(path, 'r', encoding='utf-8', newline='\n') as f:
+            jobjstr = f.read()
+            self.pointEditor.setPlainText(jobjstr)
+
+    def getImageNameFromId(self):
+        "Get image name from image id without extension"
         imageId = self.sceneImagePoint['imageListId']
         im = self.imagePoint[imageId]
         im = im['image']
         imname = im['name']
-        imname = stripExt(imname)
+        imname, ext = stripExt(imname)
+        return imname
+
+    def savePoints(self):
+        "Save points in the editor from file dialog"
+        text = self.pointEditor.toPlainText()
+        imname = self.getImageNameFromId()
         pointsname = imname + "-points.json"
         path = os.path.join(self.assetsdir, pointsname)
         fileName = QtWidgets.QFileDialog.getSaveFileName(self.centralwidget,
                                                          "Save Point File",
                                                          path,
                                                          'Json Files (*.json)')
-        with open(fileName, 'w', encoding='utf-8', newline='\n') as f:
-            jtext = json.loads(text)
-            json.dump(jtext, f, ensure_ascii=False, indent=2)
+        fpath = fileName[0]
+        if fpath:
+            with open(fpath, "w", encoding='utf-8', newline='\n') as f:
+                jtext = json.loads(text)
+                json.dump(jtext, f, ensure_ascii=False, indent=2)
 
     def loadImage(self):
         "Load image that is selected from table"
@@ -265,13 +286,19 @@ class AppWindowFinal(AppWindowInit):
         imageId = self.getImageIdFromTable()
         if imageId is None:
             return
+
         im = self.imagePoint[imageId]
         im = im['image']
         impath = im['path']
+        self.sceneImagePoint['imageListId'] = imageId
+        self.image = Image.open(impath)
         pixmap = QtGui.QPixmap(impath)
+        self.loadImage2Scene(pixmap)
+
+    def loadImage2Scene(self, pixmap):
+        "Load a given image pixmap to scene"
         sceneItem = QtWidgets.QGraphicsPixmapItem(pixmap)
         self.sceneImagePoint['image'] = pixmap
-        self.sceneImagePoint['imageListId'] = imageId
         self.renderSceneImagePoint()
 
     def getPointColor(self):
@@ -292,6 +319,7 @@ class AppWindowFinal(AppWindowInit):
 
     def drawEditorPoints(self):
         "Draw points on editor to scene"
+        self.resetSceneImage()
         pointstr = self.pointEditor.toPlainText()
         pointdict = json.loads(pointstr)
         points = [[int(p['y']), int(p['x'])] for p in pointdict]
@@ -314,8 +342,8 @@ class AppWindowFinal(AppWindowInit):
         self.canvas.setScene(self.scene)
         self.canvas.show()
 
-    def markSeamsOnImage(self):
-        "Given point list and an image mark seam lines on the image"
+    def getMarkerParams(self):
+        "Get seam marker parameters from ui"
         points = self.sceneImagePoint['points']
         image = self.sceneImagePoint['image']
         rgb32image = image.toImage().convertToFormat(QtGui.QImage.Format_RGB32)
@@ -329,6 +357,12 @@ class AppWindowFinal(AppWindowInit):
         markColor = self.colors[markColor]  # gives a QGlobalColor object
         markColor = QtGui.QColor(markColor)
         markColor = list(markColor.getRgb()[:3])
+        return imarr, points, thresh, direction, markColor
+
+    def markSeamsOnImage(self):
+        "Given point list and an image mark seam lines on the image"
+        self.resetSceneImage()
+        imarr, points, thresh, direction, markColor = self.getMarkerParams()
         marker = SeamMarker(imarr, points)
         markedImage = marker.markPointListSeam(imarr,
                                                points,
@@ -341,13 +375,47 @@ class AppWindowFinal(AppWindowInit):
         self.sceneImagePoint['image'] = pixmap
         self.renderSceneImagePoint()
 
+    def getSeamCoordinates(self):
+        "Get seam coordinates from image"
+        imarr, points, thresh, direction, markColor = self.getMarkerParams()
+        marker = SeamMarker(imarr, points)
+        coords = marker.getPointListSeamCoordinate(
+            imarr, points, direction, thresh, markColor)
+        return coords
+
+    def saveSeamCoordinates(self):
+        "Save seam coordinates to a file location"
+        coords = self.getSeamCoordinates()
+        for coord in coords:
+            marks = coord['markCoordinates']
+            marks = marks.tolist()
+            coord['markCoordinates'] = marks
+        #
+        imname = self.getImageNameFromId()
+        path = os.path.join(self.assetsdir, imname + "-coordinates.json")
+        fileName = QtWidgets.QFileDialog.getSaveFileName(self.centralwidget,
+                                                         "Save Mark Coordinates",
+                                                         path,
+                                                         'Json Files (*.json)')
+        fpath = fileName[0]
+        if fpath:
+            with open(fpath, "w", encoding='utf-8', newline='\n') as f:
+                json.dump(coords, f, ensure_ascii=False, indent=2)
+
+    def resetSceneImage(self):
+        "Deletes the carves on the image"
+        qtimg = ImageQt.ImageQt(self.image.copy())
+        pixmap = QtGui.QPixmap.fromImage(qtimg)
+        self.sceneImagePoint['image'] = pixmap
+        self.loadImage2Scene(pixmap)
+
     # Standard gui
     def closeApp(self, event):
         "Close application"
         reply = QtWidgets.QMessageBox.question(
             self.centralwidget, 'Message',
-            "Are you sure to quit?", 
-            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No, 
+            "Are you sure to quit?",
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
             QtWidgets.QMessageBox.No)
 
         if reply == QtWidgets.QMessageBox.Yes:
