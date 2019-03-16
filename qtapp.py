@@ -4,12 +4,16 @@
 
 from main.pointcarver import SeamMarker
 from main.utils import readImage, readPoints, parsePoints, stripExt
+from main.utils import qt_image_to_array
 from ui.designerOutput import Ui_MainWindow as UIMainWindow
 
-from PIL import Image
+from PIL import Image, ImageQt
 from PySide2 import QtGui, QtCore, QtWidgets
 import sys
 import os
+import json
+import numpy as np
+
 
 
 class AppWindowInit(UIMainWindow):
@@ -24,14 +28,101 @@ class AppWindowInit(UIMainWindow):
         pass
 
 
+class SceneCanvas(QtWidgets.QGraphicsScene):
+    "Mouse events overriding for graphics scene with editor integration"
+
+    def __init__(self,
+                 imagePoint,
+                 pointSize: int,
+                 editor: QtWidgets.QPlainTextEdit,
+                 parent=None,
+                 pointColor=QtCore.Qt.green
+                 ):
+        self.editor = editor
+        self.imagePoint = imagePoint
+        self.pointColor = pointColor
+        self.pointSize = pointSize
+        super().__init__(parent)
+
+    def addPoints2ImagePoint(self, point):
+        "Add points 2 image point attribute"
+        self.imagePoint['points'].append(point)
+
+    def renderPointsInEditor(self):
+        "Render points of imagePoint in pointEditor"
+        self.editor.clear()
+        pointjson = [{'y': int(p[0]), 
+                      'x': int(p[1])} for p in self.imagePoint['points']]
+        pointjson = json.dumps(pointjson, ensure_ascii=False, indent=2)
+        self.editor.setPlainText(pointjson)
+
+    def drawPointsOnImage(self):
+        "Draw points as an overlay on the image"
+        self.clear()
+        points = self.imagePoint['points']
+        image = self.imagePoint['image']
+        imw, imh = image.width(), image.height()
+        brush = QtGui.QBrush(self.pointColor)
+        pwidth = self.pointSize
+        pheight = self.pointSize
+        result = QtGui.QPixmap(w=imw, h=imh)
+        result.fill(QtCore.Qt.white)
+        print("isnull image: ", str(image.isNull()))
+        painter = QtGui.QPainter()
+        painter.begin(image)
+        painter.setBrush(brush)
+        painter.setPen(self.pointColor)
+        painter.drawPixmap(0, 0, image)
+
+        for point in points:
+            py = point[0]
+            px = point[1]
+            painter.drawEllipse(px, py, pwidth, pheight)
+        #
+        painter.end()
+        pixmapItem = QtWidgets.QGraphicsPixmapItem(image)
+        self.addItem(pixmapItem)
+
+    def mouseDoubleClickEvent(self, event):
+        "Overriding double click event"
+        point = event.scenePos()
+        x, y = point.x(), point.y()
+        print(x, " ", y)
+        pointInv = [int(y), int(x)]
+        self.addPoints2ImagePoint(pointInv)
+        self.renderPointsInEditor()
+        self.drawPointsOnImage()
+
+
 class AppWindowFinal(AppWindowInit):
     "Final application window"
+
     def __init__(self):
         super().__init__()
         self.imagePoint = {}  # imageId: {image: {}, points: {}}
         self.image = None
-        self.scene = QtWidgets.QGraphicsScene()
-        self.sceneImagePoint = {}
+        self.assetsdir = ""
+        self.sceneImagePoint = {"image": QtGui.QPixmap(),
+                                "points": []}
+        self.colors = {"red": QtCore.Qt.red,
+                  "black": QtCore.Qt.black,
+                  "green": QtCore.Qt.green,
+                  "yellow": QtCore.Qt.yellow,
+                  "cyan": QtCore.Qt.cyan,
+                  "blue": QtCore.Qt.blue,
+                  "gray": QtCore.Qt.gray,
+                  "magenta": QtCore.Qt.magenta,
+                  "white": QtCore.Qt.white}
+        combovals = list(self.colors.keys())
+        self.pointColorComboBox.addItems(combovals)
+        self.markColorComboBox.addItems(combovals)
+        self.scene = SceneCanvas(
+            imagePoint=self.sceneImagePoint,
+            editor=self.pointEditor,
+            pointSize=self.pointSizeSpin.value(),
+            pointColor=self.pointColorComboBox.currentText())
+        self.directions = ['down', 'up', 'left', 'right']
+        self.carveDirComboBox.addItems(self.directions)
 
         # table widget related
 
@@ -39,8 +130,19 @@ class AppWindowFinal(AppWindowInit):
         self.main_window.setWindowTitle("Seam Marker using Points")
         self.main_window.closeEvent = self.closeApp
 
+        # Point size spin
+        self.pointSizeSpin.valueChanged.connect(self.setPointSize2Scene)
+
+        # Point color Combo
+        self.pointColorComboBox.currentTextChanged.connect(
+            self.setPointColor2Scene)
+
         # Buttons
         self.importBtn.clicked.connect(self.importImagePoints)
+        self.loadBtn.clicked.connect(self.loadImage)
+        self.drawPointsBtn.clicked.connect(self.drawEditorPoints)
+        self.carveBtn.clicked.connect(self.markSeamsOnImage)
+        self.savePointsBtn.clicked.connect(self.savePoints)
 
     def addPointFile2Table(self, imageId,
                            pointFilePath: str):
@@ -79,11 +181,11 @@ class AppWindowFinal(AppWindowInit):
     def getPointPathFromImagePath(self, imagePath):
         "Get point file from image path"
         pardir = os.path.dirname(imagePath)  # assetsPath/images
-        assetdir = os.path.dirname(pardir)  # assetsPath
-        pointsdir = os.path.join(assetdir, 'points')  # assetsPath/points
+        self.assetsdir = os.path.dirname(pardir)  # assetsPath
+        pointsdir = os.path.join(self.assetsdir, 'points')  # assetsPath/points
         imname = os.path.basename(imagePath)
         imNoExt = stripExt(imname)[0]
-        pointsName = imNoExt + "-points.txt"
+        pointsName = imNoExt + "-points.json"
         pointsPath = os.path.join(pointsdir, pointsName)
         return pointsPath
 
@@ -114,16 +216,16 @@ class AppWindowFinal(AppWindowInit):
 
     def getImageIdFromTable(self):
         "Get selected image from table"
-        item = self.tableWidget.selectedItems()
-        if not item:
+        items = self.tableWidget.selectedItems()
+        if not items:
             self.statusbar.showMessage("Please select an image first")
             return
-        elif len(item) > 1:
+        elif len(items) > 1:
             self.statusbar.showMessage("Please select a single image")
         #
-        imageId = self.tableWidget.indexFromItem(item)
+        imageId = self.tableWidget.indexFromItem(items[0])
         return imageId
-    
+
     def importPoint(self):
         "Import point for image"
         imageId = self.getImageIdFromTable()
@@ -137,11 +239,29 @@ class AppWindowFinal(AppWindowInit):
             for pointpath in fdir[0]:
                 self.addPointFile2Table(imageId, pointpath)
 
+    def savePoints(self):
+        "Save points in the editor from file dialog"
+        text = self.pointEditor.toPlainText()
+        imageId = self.sceneImagePoint['imageListId']
+        im = self.imagePoint[imageId]
+        im = im['image']
+        imname = im['name']
+        imname = stripExt(imname)
+        pointsname = imname + "-points.json"
+        path = os.path.join(self.assetsdir, pointsname)
+        fileName = QtWidgets.QFileDialog.getSaveFileName(self.centralwidget,
+                                                         "Save Point File",
+                                                         path,
+                                                         'Json Files (*.json)')
+        with open(fileName, 'w', encoding='utf-8', newline='\n') as f:
+            jtext = json.loads(text)
+            json.dump(jtext, f, ensure_ascii=False, indent=2)
+
     def loadImage(self):
-        "Load image that is seleceted from table"
+        "Load image that is selected from table"
         self.sceneImagePoint = {}
-        self.sceneImagePoint['image'] = {}
-        self.sceneImagePoint['points'] = {}
+        self.sceneImagePoint['points'] = []
+        self.pointEditor.clear()
         imageId = self.getImageIdFromTable()
         if imageId is None:
             return
@@ -150,16 +270,76 @@ class AppWindowFinal(AppWindowInit):
         impath = im['path']
         pixmap = QtGui.QPixmap(impath)
         sceneItem = QtWidgets.QGraphicsPixmapItem(pixmap)
-        self.scene.addItem(sceneItem)
+        self.sceneImagePoint['image'] = pixmap
+        self.sceneImagePoint['imageListId'] = imageId
+        self.renderSceneImagePoint()
 
+    def getPointColor(self):
+        "Get point color from combo box"
+        color = self.pointColorComboBox.currentText()
+        return self.colors[color]
 
+    def setPointColor2Scene(self):
+        "Set point color to scene"
+        color = self.pointColorComboBox.currentText()
+        pointColor = self.colors[color]
+        self.scene.pointColor = pointColor
 
+    def setPointSize2Scene(self):
+        "Set point size to scene widget"
+        size = self.pointSizeSpin.value()
+        self.scene.pointSize = size
 
+    def drawEditorPoints(self):
+        "Draw points on editor to scene"
+        pointstr = self.pointEditor.toPlainText()
+        pointdict = json.loads(pointstr)
+        points = [[int(p['y']), int(p['x'])] for p in pointdict]
+        self.sceneImagePoint['points'] = points
+        self.renderSceneImagePoint()
 
+    def renderSceneImagePoint(self):
+        "render image point object to scene"
+        self.scene.clear()
+        imagePixmap = self.sceneImagePoint['image']
+        imageItem = QtWidgets.QGraphicsPixmapItem(imagePixmap)
+        points = self.sceneImagePoint['points']
+        pointSize = self.pointSizeSpin.value()
+        pointColor = self.getPointColor()
+        self.scene = SceneCanvas(imagePoint=self.sceneImagePoint,
+                                 editor=self.pointEditor,
+                                 pointColor=pointColor,
+                                 pointSize=pointSize)
+        self.scene.drawPointsOnImage()
+        self.canvas.setScene(self.scene)
+        self.canvas.show()
 
-
-
-
+    def markSeamsOnImage(self):
+        "Given point list and an image mark seam lines on the image"
+        points = self.sceneImagePoint['points']
+        image = self.sceneImagePoint['image']
+        rgb32image = image.toImage().convertToFormat(QtGui.QImage.Format_RGB32)
+        imarr = qt_image_to_array(rgb32image)
+        imarr = imarr.astype(np.uint8)
+        if imarr.shape[2] > 3:
+            imarr = imarr[:, :, :3]
+        thresh = self.thresholdSpin.value()
+        direction = self.carveDirComboBox.currentText()
+        markColor = self.markColorComboBox.currentText()  # gives text val
+        markColor = self.colors[markColor]  # gives a QGlobalColor object
+        markColor = QtGui.QColor(markColor)
+        markColor = list(markColor.getRgb()[:3])
+        marker = SeamMarker(imarr, points)
+        markedImage = marker.markPointListSeam(imarr,
+                                               points,
+                                               direction,
+                                               thresh,
+                                               markColor)
+        pilim = Image.fromarray(markedImage)
+        qtimg = ImageQt.ImageQt(pilim)
+        pixmap = QtGui.QPixmap.fromImage(qtimg)
+        self.sceneImagePoint['image'] = pixmap
+        self.renderSceneImagePoint()
 
     # Standard gui
     def closeApp(self, event):

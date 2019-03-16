@@ -85,7 +85,7 @@ class SeamMarker:
                     img: np.ndarray([], dtype=np.uint8),
                     emap=None,
                     mark_color=[250, 120, 120]  # yellow
-    ):
+                    ):
         r, c, _ = img.shape
         imcopy = img.copy()
 
@@ -204,7 +204,7 @@ class SeamMarker:
                             beforeAfterCoord: (int, int),
                             imgSlice: np.ndarray([], dtype=np.uint8),
                             isUpTo: bool,
-    ):
+                            ):
         "Add sliced zone back to image"
         imcp = img.copy()
         # pdb.set_trace()
@@ -231,7 +231,7 @@ class SeamMarker:
                           col2: int,
                           mask: np.ndarray([], dtype=np.uint8),
                           img: np.ndarray([], dtype=np.uint8),
-    ):
+                          ):
         "Place points on the mask by comparing row and col position"
         # if column segmentation rows should be
         # equal if not cols should be equal
@@ -248,7 +248,7 @@ class SeamMarker:
                                     img: np.ndarray([], dtype=np.uint8),
                                     markIndex1: np.ndarray([], dtype=np.int32),
                                     markIndex2: np.ndarray([], dtype=np.int32),
-    ):
+                                    ):
         "Slice image from same size marks"
         mask = np.zeros_like(img, dtype=np.uint8)
         markrow1 = markIndex1.shape[0]
@@ -264,13 +264,13 @@ class SeamMarker:
             mask = self.placePointsOnMask(row1, row2,
                                           col1, col2,
                                           mask, img,
-            )
+                                          )
         return mask
 
     def sliceImageFromDifferentSizeMarks(self, img: np.ndarray([], dtype=np.uint8),
                                          markIndex1: np.ndarray([], dtype=np.int32),
                                          markIndex2: np.ndarray([], dtype=np.int32),
-    ):
+                                         ):
         "Slice Image with different size mark indices"
         mask = np.zeros_like(img, dtype=np.uint8)
         indexrow1 = markIndex1.shape[0]
@@ -295,7 +295,7 @@ class SeamMarker:
                             img: np.ndarray([], dtype=np.uint8),
                             markIndex1: np.ndarray([], dtype=np.int32),
                             markIndex2: np.ndarray([], dtype=np.int32),
-    ):
+                            ):
         "Slice the image using marks"
 
         # markrow1 = markIndex1.shape[0]
@@ -322,12 +322,12 @@ class SeamMarker:
             mask = self.sliceImageFromSameSizeMarks(img=img,
                                                     markIndex1=markIndex1,
                                                     markIndex2=markIndex2,
-            )
+                                                    )
         else:
             mask = self.sliceImageFromDifferentSizeMarks(img=img,
                                                          markIndex1=markIndex1,
                                                          markIndex2=markIndex2,
-            )
+                                                         )
         return mask
 
     def crop_zeros(self, img: np.ndarray([], dtype=np.uint8)):
@@ -358,6 +358,69 @@ class SeamMarker:
                            axis=0)
         #
         return img_cp
+
+    def getMarkCoordinates4Point(self, img: np.ndarray([], dtype=np.uint8),
+                                 point1: (int, int),
+                                 isUpTo: bool,
+                                 colSlice: bool,
+                                 thresh: int, mark_color: (int, int, int)):
+        "Obtain mark coordinates from image"
+        markedImage, mask, sliceImage, beforeAfter = self._markSeam4Point(
+            img=img, point1=point1, isUpTo=isUpTo,
+            thresh=thresh, mark_color=mark_color)
+
+        maskImage = np.zeros_like(img, dtype=np.bool)
+        maskImage1 = self.addPointSlice2Image(maskImage, point1,
+                                              beforeAfter, mask,
+                                              isUpTo=isUpTo)
+
+        # obtaining mark coordinates from image mask
+        m1index = self.getMarkCoordinates(maskImage1)
+        if colSlice is False:
+            m1index = np.rot90(m1index, 3, (0, 1))
+        return m1index
+
+    def _markSeam4Point(self, img: np.ndarray([], dtype=np.uint8),
+                        point1: (int, int),
+                        isUpTo: bool,
+                        thresh: int,
+                        mark_color: (int, int, int)) -> np.ndarray:
+        """
+        Mark the seam for a given point
+
+        Description
+        ------------
+        Simple strategy. We slice the image from the given point using 
+        a threshold value for the sliced area.
+        Then mark the seam on that area.
+        """
+        imcp = img.copy()
+        slice1 = self.sliceOnPoint(imcp, point1,
+                                   thresh=thresh,
+                                   isUpTo=isUpTo)
+        sl1 = slice1[0]  # image slice
+        ba1 = slice1[1]  # before, after coord
+        m1, mask1 = self.mark_column(sl1, mark_color=mark_color)
+        # m1 == marked image
+        return m1, mask1, sl1, ba1
+        # adding marked masks back to the image mask
+
+    def markSeam4Point(self, img: np.ndarray([], dtype=np.uint8),
+                       point1: (int, int),
+                       isUpTo: bool,
+                       thresh: int,
+                       colSlice: bool,
+                       mark_color: (int, int, int)):
+        "Mark seam for point"
+        markedImage, mask, sliceImage, beforeAfter = self._markSeam4Point(
+            img=img, point1=point1, isUpTo=isUpTo,
+            thresh=thresh, mark_color=mark_color)
+        markedImage = self.addPointSlice2Image(img, point1,
+                                               beforeAfter, markedImage,
+                                               isUpTo=isUpTo)
+        if colSlice is False:
+            markedImage = np.rot90(markedImage, 3, (0, 1))
+        return markedImage
 
     def getSegmentFromPoints(self,
                              img: np.ndarray([], dtype=np.uint8),
@@ -408,7 +471,7 @@ class SeamMarker:
         m2index = self.getMarkCoordinates(maskImage2)
         im1mask = self.sliceImageWithMarks(imcp,
                                            m1index, m2index,
-        )
+                                           )
         if colSlice is False:
             plist = [point1, point2]
             im1mask = np.rot90(im1mask, 3, (0, 1))
@@ -426,7 +489,7 @@ class SeamMarker:
         if (direction != 'down' and
             direction != 'up' and
             direction != 'left' and
-            direction != 'right'):
+                direction != 'right'):
             raise ValueError('unknown direction')
 
         if direction == 'down' or direction == 'up':
@@ -442,23 +505,9 @@ class SeamMarker:
                 pairs.append((p1, p2))
         return pairs
 
-    def segmentPageWithPoints(self, img: np.ndarray([], dtype=np.uint8),
-                              plist: [],
-                              direction='down',  # allowed values down/up/left/right
-                              mark_color=[0, 255, 0],
-                              thresh=2):
-        assert thresh >= 0 and thresh <= 100
-
-        if (direction != 'down' and
-            direction != 'up' and
-            direction != 'left' and
-            direction != 'right'):
-            raise ValueError(
-                'unknown direction, list of known directions {0}'.format(
-                    str(['down', 'up', 'left', 'right'])
-                )
-            )
-        #
+    def prepImageWithParams(self, img, plist,
+                            direction):
+        "Prepare image and point list with respect to the direction"
         imcp = img.copy()
         if direction == 'down':
             colSlice = True
@@ -480,6 +529,80 @@ class SeamMarker:
             plist = [tuple(k) for k in plist.T.tolist()]
             isUpTo = True
         #
+        return imcp, plist, isUpTo, colSlice
+
+    def markPointSeam(self, img, point, direction="down",
+                      mark_color=[0, 255, 0],
+                      thresh=2):
+        "Mark seam passes around the point region"
+        imcp, point, isUpTo, colSlice = self.prepImageWithParams(img,
+                                                                 point,
+                                                                 direction)
+        markedImage = self.markSeam4Point(imcp, point, isUpTo, thresh,
+                                          colSlice, mark_color)
+        return markedImage
+
+    def markPointListSeam(self, img, plist, direction="down",
+                          thresh=3, mark_color=[0, 255, 0]):
+        "Mark seam that passes through the regions of each point"
+        imcp, plist, isUpTo, colSlice = self.prepImageWithParams(img,
+                                                                 plist,
+                                                                 direction)
+        markedImage = self.markSeam4Point(imcp, plist[0], isUpTo, thresh,
+                                          colSlice, mark_color)
+        for point in plist[1:]:
+            markedImage = self.markSeam4Point(markedImage, point,
+                                              isUpTo, thresh,
+                                              colSlice, mark_color)
+        #
+        return markedImage
+
+    def getPointSeamCoordinate(self, img, point,
+                               direction="down",
+                               thresh=2, mark_color=[0, 255, 0]):
+        "Get coordinates of the mark that passes around point region"
+        imcp, point, isUpTo, colSlice = self.prepImageWithParams(img,
+                                                                 point,
+                                                                 direction)
+        coords = self.getMarkCoordinates4Point(img, point, isUpTo,
+                                               colSlice, thresh, mark_color)
+        return coords
+
+    def getPointListSeamCoordinate(self, img, plist,
+                                   direction="down",
+                                   thresh=2, mark_color=[0, 255, 0]):
+        "Get mark coordinates associated to each point region"
+        imcp, plist, isUpTo, colSlice = self.prepImageWithParams(img,
+                                                                 plist,
+                                                                 direction)
+        coords = []
+        for point in plist:
+            coord = self.getMarkCoordinates4Point(img, point, isUpTo,
+                                                  colSlice, thresh, mark_color)
+            coords.append({point:coord})
+
+        return coords
+
+    def segmentPageWithPoints(self, img: np.ndarray([], dtype=np.uint8),
+                              plist: [],
+                              direction='down',  # allowed values down/up/left/right
+                              mark_color=[0, 255, 0],
+                              thresh=2):
+        assert thresh >= 0 and thresh <= 100
+
+        if (direction != 'down' and
+            direction != 'up' and
+            direction != 'left' and
+                direction != 'right'):
+            raise ValueError(
+                'unknown direction, list of known directions {0}'.format(
+                    str(['down', 'up', 'left', 'right'])
+                )
+            )
+        #
+        imcp, plist, isUpTo, colSlice = self.prepImageWithParams(img,
+                                                                 plist,
+                                                                 direction)
         # let's make the point pairs
         pairs = self.makePairsFromPoints(plist, direction)
         segments = [
