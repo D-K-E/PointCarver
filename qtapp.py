@@ -218,15 +218,13 @@ class AppWindowFinal(AppWindowInit):
 
     def getImageIdFromTable(self):
         "Get selected image from table"
-        items = self.tableWidget.selectedItems()
-        if not items:
-            self.statusbar.showMessage("Please select an image first")
-            return
-        elif len(items) > 1:
-            self.statusbar.showMessage("Please select a single image")
-            return
+        rownb = self.tableWidget.currentRow()
+        item = self.tableWidget.item(rownb, 0)
+        if isinstance(item, int):
+            if item == 0:
+                return
         #
-        imageId = self.tableWidget.indexFromItem(items[0])
+        imageId = self.tableWidget.indexFromItem(item)
         return imageId
 
     def importPoint(self):
@@ -340,6 +338,7 @@ class AppWindowFinal(AppWindowInit):
                                  pointSize=pointSize)
         self.scene.drawPointsOnImage()
         self.canvas.setScene(self.scene)
+        self.canvas.setCursor(QtCore.Qt.CrossCursor)
         self.canvas.show()
 
     def getMarkerParams(self):
