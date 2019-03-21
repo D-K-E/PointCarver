@@ -1,7 +1,6 @@
 # PointCarver
 Easy to use Seam Carver for images
 
-
 - Load Image
 
 ![Image Loaded](docs/carverLoadImage.png?raw=true "loaded image")
@@ -18,4 +17,3 @@ Easy to use Seam Carver for images
 
 See ![here](docs/quickStart.rst "quick start") for setting up your environment
 to get a quick start with the application
-
