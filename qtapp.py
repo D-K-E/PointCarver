@@ -9,7 +9,6 @@ from ui.designerOutput import Ui_MainWindow as UIMainWindow
 
 from PIL import Image, ImageQt
 from PySide2 import QtGui, QtCore, QtWidgets
-import uuid
 import sys
 import os
 import json

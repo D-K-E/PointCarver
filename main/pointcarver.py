@@ -305,20 +305,42 @@ class SeamMarker:
         coord1 = np.insert(coord1, 0, fillvals, axis=0)
         return coord1, coord2
 
+    def swapAndSliceMarkCoordPair(self, markCoord1, markCoord2,
+                                  image, colSlice: bool) -> np.ndarray:
+        "Slice image using mark coordinate pair"
+        imcp = np.copy(image)
+        if colSlice is True:
+            # then comparing x values
+            fsum = np.sum(markCoord1[:, 1] - markCoord2[:, 1], dtype=np.int)
+            if fsum >= 0:
+                markCoord1, markCoord2 = markCoord2, markCoord1
+            #
+            imcp = imcp[markCoord1[:, 0]:markCoord2[:, 0],
+                        markCoord1[:, 1]:markCoord2[:, 1]]
+        else:
+            fsum = np.sum(markCoord1[:, 0] - markCoord2[:, 0], dtype=np.int)
+            if fsum >= 0:
+                markCoord1, markCoord2 = markCoord2, markCoord1
+            #
+            imcp = imcp[markCoord1[:, 0]:markCoord2[:, 0],
+                        markCoord1[:, 1]:markCoord2[:, 1]]
+        return imcp
+
     def sliceImageWithMarkCoordPair(self, image: np.ndarray,
-                                    markCoord1: np.ndarray, 
+                                    markCoord1: np.ndarray,
                                     markCoord2: np.ndarray,
-                                    colSlice: bool):
+                                    colSlice: bool) -> np.ndarray:
         "Slice image with mark coordinate pair"
-        assert markCoord1.shape[1] == 2  # [x,y], [x2,y2], etc
+        imcp = np.copy(image)
+        assert markCoord1.shape[1] == 2  # [y,x], [y2,x2], etc
         assert markCoord2.shape[1] == 2
         if markCoord1.shape[0] != markCoord2.shape[0]:
             markCoord1, markCoord2 = self.matchMarkCoordPairLength(markCoord1,
                                                                    markCoord2)
         #
-        fsum = np.sum(markCoord1 - markCoord2, dtype=np.int)
-        # compare sums to get an idea which one is at top or bottom
-        # or at left or right
+        imcp = self.swapAndSliceMarkCoordPair(markCoord1, markCoord2,
+                                              imcp, colSlice)
+        return imcp
 
     def sliceImageWithMarks(self,
                             img: np.ndarray([], dtype=np.uint8),
@@ -612,6 +634,28 @@ class SeamMarker:
                            "markCoordinates": coord})
 
         return coords
+
+    def segmentImageWithPointListSeamCoordinate(self, coords,
+                                                image,
+                                                direction: str,
+                                                colSlice: bool):
+        "Segment the image using mark coordinates of a point list"
+        coords = {coord['point']: coord['markCoordinates'] for coord in coords}
+        plist = coords.keys()
+        pairs = self.makePairsFromPoints(plist, direction)
+        segments = []
+        for pair in pairs:
+            point1 = pair[0]
+            point2 = pair[1]
+            coord1 = coords[point1]
+            coord2 = coords[point2]
+            segment = self.sliceImageWithMarkCoordPair(image,
+                                                       coord1,
+                                                       coord2,
+                                                       colSlice)
+            segments.append(segment)
+        #
+        return segments
 
     def segmentPageWithPoints(self, img: np.ndarray([], dtype=np.uint8),
                               plist: [],
