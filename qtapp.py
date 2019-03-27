@@ -9,6 +9,7 @@ from ui.designerOutput import Ui_MainWindow as UIMainWindow
 
 from PIL import Image, ImageQt
 from PySide2 import QtGui, QtCore, QtWidgets
+import uuid
 import sys
 import os
 import json
@@ -124,6 +125,12 @@ class AppWindowFinal(AppWindowInit):
         self.carveDirComboBox.addItems(self.directions)
 
         # table widget related
+        self.tableWidget.setHorizontalHeaderLabels(["image files", 
+                                                    "point files"])
+
+        # hide show widgets
+        self.pointEditorCbox.setCheckState(QtCore.Qt.Checked)
+        self.showTableCbox.setCheckState(QtCore.Qt.Checked)
 
         # Main Window Events
         self.main_window.setWindowTitle("Seam Marker using Points")
@@ -145,6 +152,9 @@ class AppWindowFinal(AppWindowInit):
         self.saveCoordinatesBtn.clicked.connect(self.saveSeamCoordinates)
         self.addPoint2ImageBtn.clicked.connect(self.importPoint)
         self.openPointBtn.clicked.connect(self.openPointInEditor)
+
+        self.showTableCbox.stateChanged.connect(self.hideShowImagePointTable)
+        self.pointEditorCbox.stateChanged.connect(self.hideShowPointEditor)
 
     def addPointFile2Table(self, imageId,
                            pointFilePath: str):
@@ -177,7 +187,7 @@ class AppWindowFinal(AppWindowInit):
         im['index'] = index
         self.imagePoint[index] = {"image": im,
                                   "point": {}}
-        self.tableWidget.sortItems(0)  # sort from column 0
+        # self.tableWidget.sortItems(0)  # sort from column 0
         return index
 
     def getPointPathFromImagePath(self, imagePath):
@@ -206,6 +216,7 @@ class AppWindowFinal(AppWindowInit):
     def importImagePoints(self):
         "Import images and points"
         # import images first then check if points exist
+        self.tableWidget.clearContents()
         fdir = QtWidgets.QFileDialog.getOpenFileNames(
             self.centralwidget,
             "Select Images", "", "Images (*.png *.jpg)")
@@ -428,6 +439,20 @@ class AppWindowFinal(AppWindowInit):
     def showInterface(self):
         "Show the interface"
         self.main_window.show()
+
+    def hideShowImagePointTable(self):
+        "hide or show image point table depending on check box state"
+        if self.showTableCbox.isChecked():
+            self.tableGroup.show()
+        else:
+            self.tableGroup.hide()
+
+    def hideShowPointEditor(self):
+        "hide or show point editor based on check box state"
+        if self.pointEditorCbox.isChecked():
+            self.pointEditorGroup.show()
+        else:
+            self.pointEditorGroup.hide()
 
 
 if __name__ == '__main__':

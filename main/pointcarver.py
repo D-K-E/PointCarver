@@ -291,6 +291,35 @@ class SeamMarker:
 
         return mask
 
+    def matchMarkCoordPairLength(coord1, coord2):
+        "Match mark coordinate pairs"
+        # col slice determines the axis of match
+
+        # make sure coord1 is the one with smaller axis
+        if coord1.shape[0] >= coord2.shape[0]:
+            coord1, coord2 = coord2, coord1
+
+        fillAmount = coord2.shape[0] - coord1.shape[0]
+        fillValue = coord1[0]
+        fillvals = [fillValue for i in range(fillAmount)]
+        coord1 = np.insert(coord1, 0, fillvals, axis=0)
+        return coord1, coord2
+
+    def sliceImageWithMarkCoordPair(self, image: np.ndarray,
+                                    markCoord1: np.ndarray, 
+                                    markCoord2: np.ndarray,
+                                    colSlice: bool):
+        "Slice image with mark coordinate pair"
+        assert markCoord1.shape[1] == 2  # [x,y], [x2,y2], etc
+        assert markCoord2.shape[1] == 2
+        if markCoord1.shape[0] != markCoord2.shape[0]:
+            markCoord1, markCoord2 = self.matchMarkCoordPairLength(markCoord1,
+                                                                   markCoord2)
+        #
+        fsum = np.sum(markCoord1 - markCoord2, dtype=np.int)
+        # compare sums to get an idea which one is at top or bottom
+        # or at left or right
+
     def sliceImageWithMarks(self,
                             img: np.ndarray([], dtype=np.uint8),
                             markIndex1: np.ndarray([], dtype=np.int32),
