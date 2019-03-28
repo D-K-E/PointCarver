@@ -13,6 +13,7 @@ import sys
 import os
 import json
 import numpy as np
+import pdb
 
 
 class AppWindowInit(UIMainWindow):
@@ -100,6 +101,13 @@ class AppWindowFinal(AppWindowInit):
         super().__init__()
         self.imagePoint = {}  # imageId: {image: {}, points: {}}
         self.image = None
+        # Carve related
+
+        self.coords = None
+        self.coords_direction = None
+        self.coords_colSlice = None
+
+        #
         self.assetsdir = ""
         self.sceneImagePoint = {"image": QtGui.QPixmap(),
                                 "points": []}
@@ -149,6 +157,7 @@ class AppWindowFinal(AppWindowInit):
         self.carveBtn.clicked.connect(self.markSeamsOnImage)
         self.savePointsBtn.clicked.connect(self.savePoints)
         self.saveCoordinatesBtn.clicked.connect(self.saveSeamCoordinates)
+        self.saveBtn.clicked.connect(self.saveSegments)
         self.addPoint2ImageBtn.clicked.connect(self.importPoint)
         self.openPointBtn.clicked.connect(self.openPointInEditor)
 
@@ -288,9 +297,7 @@ class AppWindowFinal(AppWindowInit):
 
     def loadImage(self):
         "Load image that is selected from table"
-        self.sceneImagePoint = {}
-        self.sceneImagePoint['points'] = []
-        self.pointEditor.clear()
+        self.resetSceneState()
         imageId = self.getImageIdFromTable()
         if imageId is None:
             return
@@ -388,13 +395,21 @@ class AppWindowFinal(AppWindowInit):
         "Get seam coordinates from image"
         imarr, points, thresh, direction, markColor = self.getMarkerParams()
         marker = SeamMarker(imarr, points)
-        coords = marker.getPointListSeamCoordinate(
+        params = marker.prepImageWithParams(imarr,
+                                            points,
+                                            direction)
+        self.coords_colSlice = params[3]
+        self.image = imarr
+        self.coords = marker.getPointListSeamCoordinate(
             imarr, points, direction, thresh, markColor)
-        return coords
+        return self.coords
 
     def saveSeamCoordinates(self):
         "Save seam coordinates to a file location"
-        coords = self.getSeamCoordinates()
+        if self.coords == None:
+            coords = self.getSeamCoordinates()
+        else:
+            coords = self.coords
         for coord in coords:
             marks = coord['markCoordinates']
             marks = marks.tolist()
@@ -411,12 +426,51 @@ class AppWindowFinal(AppWindowInit):
             with open(fpath, "w", encoding='utf-8', newline='\n') as f:
                 json.dump(coords, f, ensure_ascii=False, indent=2)
 
+    def segmentImageWithSeamCoordinate(self):
+        "Segment image with point coords"
+        imarr, points, thresh, direction, markColor = self.getMarkerParams()
+        marker = SeamMarker(imarr, points)
+        self.getSeamCoordinates()
+        return marker.segmentImageWithPointListSeamCoordinate(
+            coords=self.coords, image=imarr,
+            colSlice=self.coords_colSlice)
+
+    def saveSegments(self):
+        "Save segments to a folder"
+        segments = self.segmentImageWithSeamCoordinate()
+        imname = self.getImageNameFromId()
+        path = os.path.join(self.assetsdir, "segments")
+        fdir = QtWidgets.QFileDialog.getExistingDirectory(
+            self.centralwidget,
+            "Choose a Directory",
+            path,
+            QtWidgets.QFileDialog.ShowDirsOnly 
+            | QtWidgets.QFileDialog.DontResolveSymlinks)
+        if fdir:
+            fpath = fdir[0]
+            for i, segment in enumerate(segments):
+                if segment.size == 0:
+                    return
+                fname = os.path.join(fpath, imname + "-seg-" + str(i) + ".png")
+                pdb.set_trace()
+                pilim = Image.fromarray(segment)
+                pilim.save(fname)
+
     def resetSceneImage(self):
         "Deletes the carves on the image"
         qtimg = ImageQt.ImageQt(self.image.copy())
         pixmap = QtGui.QPixmap.fromImage(qtimg)
         self.sceneImagePoint['image'] = pixmap
         self.loadImage2Scene(pixmap)
+
+    def resetSceneState(self):
+        "Reset scene state tied to loading of a new image"
+        self.sceneImagePoint = {}
+        self.sceneImagePoint['points'] = []
+        self.pointEditor.clear()
+        self.coords = None
+        self.coords_colSlice = None
+        self.image = None
 
     # Standard gui
     def closeApp(self, event):
