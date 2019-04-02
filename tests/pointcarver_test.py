@@ -75,7 +75,8 @@ class PointCarverTest(unittest.TestCase):
         self.imagedir = os.path.join(assetdir, 'images')
         jsondir = os.path.join(assetdir, 'jsonfiles')
         self.npdir = os.path.join(assetdir, 'numpyfiles')
-        self.image_path = os.path.join(self.imagedir, 'vietHard.jpg')
+        self.image_col_path = os.path.join(self.imagedir, 'vietHard.jpg')
+        self.image_row_path = os.path.join(self.imagedir, 'demotik.png')
         self.emap_path = os.path.join(self.imagedir, 'vietEmap.png')
         self.coords_down_path = os.path.join(jsondir,
                                              'vietHard-coordinates-down.json')
@@ -87,11 +88,18 @@ class PointCarverTest(unittest.TestCase):
                                            'vietHard-points-up.json')
         self.thresh_val = 5
 
-    def loadImage(self):
-        "load and return a copy of the image in the image path"
-        pilim = Image.open(self.image_path)
+    def loadImage(self, path):
+        pilim = Image.open(path)
         imarr = np.array(pilim)
         return imarr.copy()
+
+    def loadImageCol(self):
+        "load and return a copy of the image in the image path"
+        return self.loadImage(self.image_col_path)
+
+    def loadImageRow(self):
+        ""
+        return self.loadImage(self.image_row_path)
 
     def loadSegments(self):
         ""
@@ -104,10 +112,9 @@ class PointCarverTest(unittest.TestCase):
 
     def test_seammarker_calc_energy(self):
         "tests the calc energy function of pointcarver"
-        vietImg = Image.open(self.image_path)
         vietEmap = Image.open(self.emap_path)
         vietEmap = ImageOps.grayscale(vietEmap)
-        vietImg = np.array(vietImg, dtype=np.uint8)
+        vietImg = self.loadImageCol()
         vietEmap = np.array(vietEmap, dtype=np.uint8)
         #
         vietImcp = vietImg.copy()
@@ -127,7 +134,7 @@ class PointCarverTest(unittest.TestCase):
         "tests the minimum seam function of pointcarver"
         matrixPath = os.path.join(self.npdir, "vietSliceMatrix.npy")
         compmatrix = np.load(matrixPath)
-        vietImcp = self.loadImage()
+        vietImcp = self.loadImageCol()
         vietslice = vietImcp[:, 550:600]
         carver = SeamMarker(img=vietImcp)
         emap = carver.calc_energy(vietslice)
@@ -143,7 +150,7 @@ class PointCarverTest(unittest.TestCase):
         backtrackPath = os.path.join(self.npdir, 'vietSliceBacktrack.npy')
         compBacktrack = np.load(backtrackPath)
 
-        vietcp = self.loadImage()
+        vietcp = self.loadImageCol()
         vietslice = vietcp[:, 550:600]
         carver = SeamMarker(img=vietcp)
         emap = carver.calc_energy(vietslice)
@@ -159,7 +166,7 @@ class PointCarverTest(unittest.TestCase):
         backtrackPath = os.path.join(self.npdir, 'vietSliceBacktrack.npy')
         compBacktrack = np.load(backtrackPath)
 
-        vietcp = self.loadImage()
+        vietcp = self.loadImageCol()
         vietslice = vietcp[:, 550:600]
         carver = SeamMarker(img=vietcp)
         mat, backtrack = carver.minimum_seam(img=vietslice)
@@ -172,7 +179,7 @@ class PointCarverTest(unittest.TestCase):
 
     def test_seammarker_mark_column(self):
         compimpath = os.path.join(self.imagedir, 'slicemark.png')
-        viet = self.loadImage()
+        viet = self.loadImageCol()
         sliceImage = np.array(Image.open(compimpath), dtype=np.uint8)
         vietcp = viet.copy()
         vietslice = vietcp[:, 550:600]
@@ -186,8 +193,23 @@ class PointCarverTest(unittest.TestCase):
             "Point carver mark column function emap not given, "
             "checking if function produces same marks on same slice")
 
+    def test_seammarkerk_mark_row(self):
+        demot = self.loadImageRow()
+        compimg = os.path.join(self.imagedir, 'slicerowmark.png')
+        compimg = np.array(Image.open(compimg))
+        carver = SeamMarker(img=demot)
+        clip = demot[150:250, :]
+        clip, mask = carver.mark_row(clip)
+        # pdb.set_trace()
+        compmark = clip == compimg
+        result = compmark.all()
+        self.assertTrue(
+            result,
+            "Point carver mark row function emap not given, "
+            "checking if function produces same marks on same slice")
+
     def test_seammarker_expandPointCoordinate_normal(self):
-        viet = self.loadImage()
+        viet = self.loadImageCol()
         vietcp = viet.copy()
         carver = SeamMarker(img=vietcp)
         col_nb = vietcp.shape[1]
@@ -208,7 +230,7 @@ class PointCarverTest(unittest.TestCase):
 
     def test_seammarker_expandPointCoordinate_colBeforeIsZero(self):
         "Coord after is above ubound"
-        viet = self.loadImage()
+        viet = self.loadImageCol()
         vietcp = viet.copy()
         carver = SeamMarker(img=vietcp)
         colBefore, colAfter = carver.expandPointCoordinate(80,
@@ -243,7 +265,7 @@ class PointCarverTest(unittest.TestCase):
 
     def test_seammarker_swapAndSliceMarkCoordPair_down_colSliceTrue(self):
         ""
-        viet = self.loadImage()
+        viet = self.loadImageCol()
         m1 = os.path.join(self.npdir,
                           'matchedMarkCoordPair1ColSliceTrueDown.npy')
         m1 = np.load(m1)
@@ -263,7 +285,7 @@ class PointCarverTest(unittest.TestCase):
 
     def test_seammarker_sliceImageWithMarkCoordPair_down_colSliceTrue(self):
         "test seam marker slice Image with mark coordinate pair"
-        viet = self.loadImage()
+        viet = self.loadImageCol()
         marker = SeamMarker(img=np.zeros((2, 2), dtype=np.uint8))
         coords = getCoordsDict(self.coords_down_path)
         colSlice = True
@@ -289,7 +311,7 @@ class PointCarverTest(unittest.TestCase):
 
     def test_seammarker_segmentImageWithPointListSeamCoordinate(self):
         colSlice = True
-        img = self.loadImage()
+        img = self.loadImageCol()
         marker = SeamMarker(img=np.zeros((2, 2), dtype=np.uint8))
         coords = loadJfile(self.coords_down_path)
         segments = marker.segmentImageWithPointListSeamCoordinate(
