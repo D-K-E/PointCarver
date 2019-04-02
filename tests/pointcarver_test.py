@@ -3,20 +3,19 @@
 # No warranties, see LICENSE
 # Tests the main functionality of point carver
 
-
 import sys
 sys.path.insert(0, '..')
 
-
-from main.pointcarver import SeamMarker
-from main.utils import readImage, readPoints, parsePoints, stripExt
-from main.utils import qt_image_to_array
-from PIL import Image, ImageQt, ImageOps
-import unittest
-import numpy as np
-import os
-import json
 import pdb
+import json
+import os
+import numpy as np
+import unittest
+from PIL import Image, ImageQt, ImageOps
+from main.utils import qt_image_to_array
+from main.utils import readImage, readPoints, parsePoints, stripExt
+from main.pointcarver import SeamMarker
+
 
 def loadJfile(path):
     "Load json file to memory"
@@ -56,15 +55,13 @@ def getCoordPair(coordpath, colSlice: bool):
     marker = SeamMarker(img)
     coords_down = loadJfile(coordpath)
     coords = {
-            tuple(coord['point']): np.array(coord['markCoordinates']) for coord
-            in coords_down
-        }
+        tuple(coord['point']): np.array(coord['markCoordinates']) for coord
+        in coords_down
+    }
     plist = list(coords.keys())
     pairs = marker.makePairsFromPoints(plist, colSlice=colSlice)
     pair = pairs[0]
     return pair
-
-
 
 
 class PointCarverTest(unittest.TestCase):
@@ -95,6 +92,15 @@ class PointCarverTest(unittest.TestCase):
         pilim = Image.open(self.image_path)
         imarr = np.array(pilim)
         return imarr.copy()
+
+    def loadSegments(self):
+        ""
+        segments = []
+        for i in range(4):
+            segpath = os.path.join(self.imagedir, str(i) + '-viet.png')
+            seg = np.array(Image.open(segpath))
+            segments.append(seg)
+        return segments
 
     def test_seammarker_calc_energy(self):
         "tests the calc energy function of pointcarver"
@@ -223,14 +229,15 @@ class PointCarverTest(unittest.TestCase):
         coords = getCoordsDict(self.coords_down_path)
         point1 = pair[0]
         point2 = pair[1]
-        marker = SeamMarker(img=np.zeros((2,2), dtype=np.uint8))
+        marker = SeamMarker(img=np.zeros((2, 2), dtype=np.uint8))
         coord1 = coords[point1]
         coord2 = coords[point2]
         coord1_2d = coord1[:, :2]
         coord2_2d = coord2[:, :2]
         uni1 = np.unique(coord1_2d, axis=0)
         uni2 = np.unique(coord2_2d, axis=0)
-        retval1, retval2 = marker.matchMarkCoordPairLength(uni1, uni2, colSlice)
+        retval1, retval2 = marker.matchMarkCoordPairLength(
+            uni1, uni2, colSlice)
         # pdb.set_trace()
         self.assertEqual(retval1.shape, retval2.shape)
 
@@ -238,10 +245,10 @@ class PointCarverTest(unittest.TestCase):
         ""
         viet = self.loadImage()
         m1 = os.path.join(self.npdir,
-                                'matchedMarkCoordPair1ColSliceTrueDown.npy')
+                          'matchedMarkCoordPair1ColSliceTrueDown.npy')
         m1 = np.load(m1)
         m2 = os.path.join(self.npdir,
-                                'matchedMarkCoordPair2ColSliceTrueDown.npy')
+                          'matchedMarkCoordPair2ColSliceTrueDown.npy')
         m2 = np.load(m2)
         marker = SeamMarker(viet)
         colSlice = True
@@ -251,7 +258,7 @@ class PointCarverTest(unittest.TestCase):
         compimg = np.array(Image.open(compimg))
         comp = compimg == swaped
         result = comp.all()
-        self.assertTrue(result, 
+        self.assertTrue(result,
                         "Image slicing with mark coordinate has failed")
 
     def test_seammarker_sliceImageWithMarkCoordPair_down_colSliceTrue(self):
@@ -270,16 +277,29 @@ class PointCarverTest(unittest.TestCase):
         uni1 = np.unique(coord1_2d, axis=0)
         uni2 = np.unique(coord2_2d, axis=0)
         segment = marker.sliceImageWithMarkCoordPair(viet.copy(),
-                                                   uni1,
-                                                   uni2,
-                                                   colSlice)
+                                                     uni1,
+                                                     uni2,
+                                                     colSlice)
         compimg = os.path.join(self.imagedir, 'slicedImage.png')
         compimg = np.array(Image.open(compimg))
         comp = compimg == segment
         result = comp.all()
-        self.assertTrue(result, 
+        self.assertTrue(result,
                         "Image slicing with mark coordinate has failed")
 
+    def test_seammarker_segmentImageWithPointListSeamCoordinate(self):
+        colSlice = True
+        img = self.loadImage()
+        marker = SeamMarker(img=np.zeros((2, 2), dtype=np.uint8))
+        coords = loadJfile(self.coords_down_path)
+        segments = marker.segmentImageWithPointListSeamCoordinate(
+            image=img, coords=coords, colSlice=colSlice)
+        compsegs = self.loadSegments()
+        compvals = [segments[i] == compsegs[i] for i in range(len(segments))]
+        compvals = [compval.all() for compval in compvals]
+        result = all(compvals)
+        self.assertTrue(result,
+                        "Segments have failed")
 
 
 if __name__ == "__main__":

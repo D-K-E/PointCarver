@@ -2,9 +2,10 @@
 # License: see, LICENSE
 # No warranties, see LICENSE
 
+
 from main.pointcarver import SeamMarker
 from main.utils import readImage, readPoints, parsePoints, stripExt
-from main.utils import qt_image_to_array
+from main.utils import qt_image_to_array, saveJson
 from ui.designerOutput import Ui_MainWindow as UIMainWindow
 
 from PIL import Image, ImageQt
@@ -67,7 +68,6 @@ class SceneCanvas(QtWidgets.QGraphicsScene):
         pheight = self.pointSize
         result = QtGui.QPixmap(w=imw, h=imh)
         result.fill(QtCore.Qt.white)
-        print("isnull image: ", str(image.isNull()))
         painter = QtGui.QPainter()
         painter.begin(image)
         painter.setBrush(brush)
@@ -87,7 +87,6 @@ class SceneCanvas(QtWidgets.QGraphicsScene):
         "Overriding double click event"
         point = event.scenePos()
         x, y = point.x(), point.y()
-        print(x, " ", y)
         pointInv = [int(y), int(x)]
         self.addPoints2ImagePoint(pointInv)
         self.renderPointsInEditor()
@@ -158,6 +157,7 @@ class AppWindowFinal(AppWindowInit):
         self.savePointsBtn.clicked.connect(self.savePoints)
         self.saveCoordinatesBtn.clicked.connect(self.saveSeamCoordinates)
         self.saveBtn.clicked.connect(self.saveSegments)
+        self.saveAllBtn.clicked.connect(self.saveAll)
         self.addPoint2ImageBtn.clicked.connect(self.importPoint)
         self.openPointBtn.clicked.connect(self.openPointInEditor)
 
@@ -404,23 +404,33 @@ class AppWindowFinal(AppWindowInit):
             imarr, points, direction, thresh, markColor)
         return self.coords
 
+    def prepCoords(self, coords):
+        "Prepare coords"
+        coordinates = []
+        for coord in coords:
+            marks = coord['markCoordinates']
+            marks = marks.tolist()
+            coord['markCoordinates'] = marks
+            coordinates.append(coord)
+        #
+        return coordinates
+
     def saveSeamCoordinates(self):
         "Save seam coordinates to a file location"
         if self.coords == None:
             coords = self.getSeamCoordinates()
         else:
             coords = self.coords
-        for coord in coords:
-            marks = coord['markCoordinates']
-            marks = marks.tolist()
-            coord['markCoordinates'] = marks
+        #
+        coords = self.prepCoords(coords)
         #
         imname = self.getImageNameFromId()
         path = os.path.join(self.assetsdir, imname + "-coordinates.json")
-        fileName = QtWidgets.QFileDialog.getSaveFileName(self.centralwidget,
-                                                         "Save Mark Coordinates",
-                                                         path,
-                                                         'Json Files (*.json)')
+        fileName = QtWidgets.QFileDialog.getSaveFileName(
+            self.centralwidget,
+            "Save Mark Coordinates",
+            path,
+            'Json Files (*.json)')
         fpath = fileName[0]
         if fpath:
             with open(fpath, "w", encoding='utf-8', newline='\n') as f:
@@ -447,14 +457,39 @@ class AppWindowFinal(AppWindowInit):
             QtWidgets.QFileDialog.ShowDirsOnly 
             | QtWidgets.QFileDialog.DontResolveSymlinks)
         if fdir:
-            fpath = fdir[0]
             for i, segment in enumerate(segments):
                 if segment.size == 0:
                     return
-                fname = os.path.join(fpath, imname + "-seg-" + str(i) + ".png")
-                pdb.set_trace()
+                fname = os.path.join(fdir, imname + "-seg-" + str(i) + ".png")
+                # pdb.set_trace()
                 pilim = Image.fromarray(segment)
                 pilim.save(fname)
+
+    def saveAll(self):
+        "Save coordinates segments, points"
+        segments = self.segmentImageWithSeamCoordinate()
+        self.getSeamCoordinates()
+        coords = self.prepCoords(self.coords)
+        text = self.pointEditor.toPlainText()
+        imname = self.getImageNameFromId()
+        pointsname = imname + "-points.json"
+        coordsname = imname + "-coordinates.json"
+        fdir = QtWidgets.QFileDialog.getExistingDirectory(
+            self.centralwidget,
+            "Choose a save directory",
+            self.assetsdir,
+            QtWidgets.QFileDialog.ShowDirsOnly
+            | QtWidgets.QFileDialog.DontResolveSymlinks)
+        if fdir:
+            coordpath = os.path.join(fdir, coordsname)
+            pointpath = os.path.join(fdir, pointsname)
+            saveJson(coordpath, coords)
+            saveJson(pointpath, text)
+            for i, seg in enumerate(segments):
+                fname = imname + "-seg-" + str(i) + ".png"
+                segname = os.path.join(fdir, fname)
+                pilim = Image.fromarray(seg)
+                pilim.save(segname)
 
     def resetSceneImage(self):
         "Deletes the carves on the image"

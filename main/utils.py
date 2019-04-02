@@ -1,11 +1,16 @@
 from PIL import Image
 import numpy as np
+import json
 
 from PySide2 import QtGui
 
-
 # From stack overflow
 
+def saveJson(path, obj):
+    "Save json"
+    with open(path, 'w', 
+              encoding='utf-8', newline='\n') as f:
+        json.dump(obj, f)
 
 def qt_image_to_array(img: QtGui.QImage):
     """ Creates a numpy array from a QImage.
