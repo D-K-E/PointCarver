@@ -487,12 +487,12 @@ class SeamMarker:
                        colSlice: bool,
                        mark_color: (int, int, int)):
         "Mark seam for point"
-        markedImage, mask, sliceImage, beforeAfter = self._markSeam4Point(
+        markedSlice, mask, sliceImage, beforeAfter = self._markSeam4Point(
             img=img, point1=point1, isUpTo=isUpTo, colSlice=colSlice,
             thresh=thresh, mark_color=mark_color)
         markedImage = self.addPointSlice2Image(img=img, point=point1,
                                                beforeAfterCoord=beforeAfter, 
-                                               imgSlice=markedImage,
+                                               imgSlice=markedSlice,
                                                colSlice=colSlice,
                                                isUpTo=isUpTo)
         return markedImage
