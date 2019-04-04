@@ -1,6 +1,12 @@
 # PointCarver
 Easy to use Seam Carver for images
 
+
+### Status
+
+[![Build Status](https://travis-ci.com/D-K-E/PointCarver.svg?branch=master)](https://travis-ci.com/D-K-E/PointCarver)
+
+
 - Load Image
 
 ![Image Loaded](docs/carverLoadImage.png?raw=true "loaded image")
