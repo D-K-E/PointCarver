@@ -27,7 +27,8 @@ install:
   - conda info -a
 
   # Replace dep1 dep2 ... with your dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy pillow Pyside2
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy pillow
+  - conda install -n test-environment -c conda-forge pyside2 
   - source activate test-environment
 
 script:
