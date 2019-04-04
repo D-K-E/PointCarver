@@ -33,4 +33,4 @@ install:
   - pip install .
 
 script:
-    - python tests/pointcarver_test.py
+    - python tests/seammarker_test.py
