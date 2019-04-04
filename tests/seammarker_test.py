@@ -3,13 +3,10 @@
 # No warranties, see LICENSE
 # Tests the main functionality of point carver
 
-import sys
-sys.path.insert(0, '..')
 
-
-from main.pointcarver import SeamMarker
-from main.utils import readImage, readPoints, parsePoints, stripExt
-from main.utils import qt_image_to_array
+from pointcarver.src.seammarker import SeamMarker
+from pointcarver.src.utils import readImage, readPoints, parsePoints, stripExt
+from pointcarver.src.utils import qt_image_to_array
 from PIL import Image, ImageQt, ImageOps
 import unittest
 import numpy as np

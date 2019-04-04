@@ -3,9 +3,9 @@
 # No warranties, see LICENSE
 
 
-from main.pointcarver import SeamMarker
-from main.utils import readImage, readPoints, parsePoints, stripExt
-from main.utils import qt_image_to_array, saveJson
+from src.seammarker import SeamMarker
+from src.utils import readImage, readPoints, parsePoints, stripExt
+from src.utils import qt_image_to_array, saveJson
 from ui.designerOutput import Ui_MainWindow as UIMainWindow
 
 from PIL import Image, ImageQt
