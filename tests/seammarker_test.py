@@ -67,7 +67,8 @@ class PointCarverTest(unittest.TestCase):
     def setUp(self):
         "set up the pointcarver class"
         currentdir = os.getcwd()
-        assetdir = os.path.join(currentdir, 'assets')
+        testdir = os.path.join(currentdir, "tests")
+        assetdir = os.path.join(testdir, 'assets')
         self.assetdir = assetdir
         self.imagedir = os.path.join(assetdir, 'images')
         jsondir = os.path.join(assetdir, 'jsonfiles')
