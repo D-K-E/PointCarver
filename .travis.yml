@@ -30,7 +30,7 @@ install:
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy pillow
   - conda install -n test-environment -c conda-forge pyside2 
   - source activate test-environment
-  - python setup.py install
+  - pip install .
 
 script:
     - python tests/pointcarver_test.py
