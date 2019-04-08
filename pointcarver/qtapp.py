@@ -385,9 +385,15 @@ class AppWindowFinal(AppWindowInit):
                                                direction,
                                                thresh,
                                                markColor)
-        pilim = Image.fromarray(markedImage)
-        qtimg = ImageQt.ImageQt(pilim)
-        pixmap = QtGui.QPixmap.fromImage(qtimg)
+        height, width, channel = markedImage.shape
+        bytesPerLine = width * channel
+        qimage = QtGui.QImage(markedImage.data,
+                              width,
+                              height,
+                              bytesPerLine,
+                              QtGui.QImage.Format_RGB888)
+        qimage = qimage.rgbSwapped()
+        pixmap = QtGui.QPixmap.fromImage(qimage)
         self.sceneImagePoint['image'] = pixmap
         self.renderSceneImagePoint()
 

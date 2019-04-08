@@ -10,16 +10,8 @@ import scipy.ndimage as nd  # operate easily on image matrices
 import pdb
 
 
-class SeamMarker:
-    def __init__(self,
-                 img: np.ndarray([], dtype=np.uint8),
-                 plist=[],
-                 thresh=10,
-                 direction='down'):
-        self.img = img
-        self.plist = plist
-        self.direction = direction
-        self.thresh = thresh
+class SeamFuncs:
+    def __init__(self):
         self.mark_color = [0, 255, 0]
 
     def calc_energy(self,
@@ -124,6 +116,20 @@ class SeamMarker:
         img = np.rot90(img, 3, (0, 1))
         mask = np.rot90(mask, 3, (0, 1))
         return img, mask
+
+
+class SeamMarker(SeamFuncs):
+    def __init__(self,
+                 img: np.ndarray([], dtype=np.uint8),
+                 plist=[],
+                 thresh=10,
+                 direction='down'):
+        super().__init__()
+        self.img = img
+        self.plist = plist
+        self.direction = direction
+        self.thresh = thresh
+        self.mark_color = [0, 255, 0]
 
     def expandPointCoordinate(self,
                               ubound: int,
@@ -302,8 +308,8 @@ class SeamMarker:
 
         Description
         ------------
-        
-        The logic is simple. If we are dealing with a column slice, then 
+
+        The logic is simple. If we are dealing with a column slice, then
         the y values should match, since we need to have equal column length
         to fill the column mask later on.
 
@@ -439,7 +445,7 @@ class SeamMarker:
 
         maskImage = np.zeros_like(img, dtype=np.bool)
         maskImage1 = self.addPointSlice2Image(img=maskImage, point=point1,
-                                              beforeAfterCoord=beforeAfter, 
+                                              beforeAfterCoord=beforeAfter,
                                               imgSlice=mask,
                                               colSlice=colSlice,
                                               isUpTo=isUpTo)
@@ -461,7 +467,7 @@ class SeamMarker:
 
         Description
         ------------
-        Simple strategy. We slice the image from the given point using 
+        Simple strategy. We slice the image from the given point using
         a threshold value for the sliced area.
         Then mark the seam on that area.
         """
@@ -491,7 +497,7 @@ class SeamMarker:
             img=img, point1=point1, isUpTo=isUpTo, colSlice=colSlice,
             thresh=thresh, mark_color=mark_color)
         markedImage = self.addPointSlice2Image(img=img, point=point1,
-                                               beforeAfterCoord=beforeAfter, 
+                                               beforeAfterCoord=beforeAfter,
                                                imgSlice=markedSlice,
                                                colSlice=colSlice,
                                                isUpTo=isUpTo)
@@ -513,56 +519,63 @@ class SeamMarker:
                 pairs.append((p1, p2))
         return pairs
 
+    def prepDirection(self, direction: str):
+        "Prepare direction"
+        colSlice = True
+        isUpTo = False
+        if direction == "down":
+            colSlice = True
+            isUpTo = False
+        elif direction == "up":
+            colSlice = True
+            isUpTo = True
+        elif direction == "right":
+            colSlice = False
+            isUpTo = False
+        elif direction == "left":
+            colSlice = False
+            isUpTo = True
+
+        return colSlice, isUpTo
+
     def prepImageWithParams(self, img, plist,
                             direction):
         "Prepare image and point list with respect to the direction"
         imcp = img.copy()
-        if direction == 'down':
-            colSlice = True
-            isUpTo = False
-        elif direction == 'up':
-            colSlice = True
-            isUpTo = True
-        elif direction == 'right':
+        if direction == 'right':
             # rotate points and image
-            colSlice = False
             imcp = np.rot90(imcp, 1, (0, 1))
             plist = np.rot90(plist, 1, (0, 1))
             plist = [tuple(k) for k in plist.T.tolist()]
-            isUpTo = False
         elif direction == 'left':
-            colSlice = False
             imcp = np.rot90(imcp, 1, (0, 1))
             plist = np.rot90(plist, 1, (0, 1))
             plist = [tuple(k) for k in plist.T.tolist()]
-            isUpTo = True
-        #
+
+        colSlice, isUpTo = self.prepDirection(direction)
         return imcp, plist, isUpTo, colSlice
 
     def markPointSeam(self, img, point, direction="down",
                       mark_color=[0, 255, 0],
                       thresh=2):
         "Mark seam passes around the point region"
-        imcp, point, isUpTo, colSlice = self.prepImageWithParams(img,
-                                                                 point,
-                                                                 direction)
-        markedImage = self.markSeam4Point(imcp, point, isUpTo, thresh,
+        colSlice, isUpTo = self.prepDirection(direction)
+        markedImage = self.markSeam4Point(img.copy(), point, isUpTo, thresh,
                                           colSlice, mark_color)
         return markedImage
 
     def markPointListSeam(self, img, plist, direction="down",
                           thresh=3, mark_color=[0, 255, 0]):
         "Mark seam that passes through the regions of each point"
-        imcp, plist, isUpTo, colSlice = self.prepImageWithParams(img,
-                                                                 plist,
-                                                                 direction)
-        markedImage = self.markSeam4Point(imcp, plist[0], isUpTo, thresh,
-                                          colSlice=colSlice,
-                                          mark_color=mark_color)
+        markedImage = self.markPointSeam(img, plist[0],
+                                         direction=direction,
+                                         thresh=thresh,
+                                         mark_color=mark_color)
         for point in plist[1:]:
-            markedImage = self.markSeam4Point(markedImage, point,
-                                              isUpTo, thresh,
-                                              colSlice, mark_color)
+            markedImage = self.markPointSeam(markedImage, point,
+                                             direction=direction,
+                                             thresh=thresh,
+                                             mark_color=mark_color)
         #
         return markedImage
 
@@ -623,7 +636,7 @@ class SeamMarker:
 
     def segmentPageWithPoints(self, img: np.ndarray([], dtype=np.uint8),
                               plist: [],
-                              direction='down',  # allowed values 
+                              direction='down',  # allowed values
                               # down/up/left/right
                               mark_color=[0, 255, 0],
                               thresh=2):
@@ -662,3 +675,21 @@ class SeamMarker:
                                           thresh=self.thresh,
                                           mark_color=self.mark_color,
                                           direction=self.direction)
+
+
+class DocumentSeamMarker(SeamMarker):
+    "Caching some values to facilitate seam marking per document"
+
+    def __init__(self,
+                 img: np.ndarray([], dtype=np.uint8),
+                 plist=[],
+                 thresh=10,
+                 direction='down'):
+        super().__init__(img, plist, thresh, direction)
+        self.thresh = thresh
+        self.plist = plist
+        self.direction = direction
+        self.img = img
+        self.coordinates = {}
+        self.isUpTo = None
+        self.colSlice = None

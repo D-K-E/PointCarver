@@ -24,23 +24,27 @@ def qt_image_to_array(img: QtGui.QImage):
         "img format must be QImage.Format.Format_RGB32, got: {}".format(
             img.format())
 
-    img_size = img.size()
+    height = img.height()
+    width = img.width()
+    channels = img.depth()
     bbuffer = img.constBits()
 
     # Sanity check
     n_bits_buffer = len(bbuffer) * 8
-    n_bits_image = img_size.width() * img_size.height() * img.depth()
+    n_bits_image = width * height * channels
     assert n_bits_buffer == n_bits_image,\
         "size mismatch: {} != {}".format(n_bits_buffer, n_bits_image)
 
     assert img.depth() == 32, "unexpected image depth: {}".format(img.depth())
 
     # Note the different width height parameter order!
-    arr = np.ndarray(
-        shape=(img_size.height(), img_size.width(), img.depth()//8),
-                     buffer=bbuffer, 
+    arr = np.ndarray(shape=(height,
+                            width,
+                            channels // 8
+                            ),
+                     buffer=bbuffer,
                      dtype=np.uint8)
-    return arr
+    return arr # change rgb -> bgr
 
 # end stack overflow
 
