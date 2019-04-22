@@ -437,17 +437,17 @@ class SeamMarker:
             img=img, point1=point1, isUpTo=isUpTo, colSlice=colSlice,
             thresh=thresh, mark_color=mark_color)
 
-        maskImage = np.zeros_like(img, dtype=np.bool)
+        maskImage = np.zeros_like(img, dtype=np.uint8)
+        mask = np.uint8(np.where(mask, 255, 0))
         maskImage1 = self.addPointSlice2Image(img=maskImage, point=point1,
                                               beforeAfterCoord=beforeAfter, 
                                               imgSlice=mask,
                                               colSlice=colSlice,
                                               isUpTo=isUpTo)
+        # pdb.set_trace()
 
         # obtaining mark coordinates from image mask
         m1index = self.getMarkCoordinates(maskImage1)
-        if colSlice is False:
-            m1index = np.rot90(m1index, 3, (0, 1))
         return m1index
 
     def _markSeam4Point(self, img: np.ndarray([], dtype=np.uint8),
@@ -455,7 +455,8 @@ class SeamMarker:
                         isUpTo: bool,
                         colSlice: bool,
                         thresh: int,
-                        mark_color: (int, int, int)) -> np.ndarray:
+                        mark_color: (int, int, int)
+                        ) -> np.ndarray:
         """
         Mark the seam for a given point
 
@@ -478,7 +479,6 @@ class SeamMarker:
             m1, mask1 = self.mark_row(sl1, mark_color=mark_color)
         # m1 == marked image
         return m1, mask1, sl1, ba1
-        # adding marked masks back to the image mask
 
     def markSeam4Point(self, img: np.ndarray([], dtype=np.uint8),
                        point1: (int, int),
@@ -573,7 +573,7 @@ class SeamMarker:
         imcp, point, isUpTo, colSlice = self.prepImageWithParams(img,
                                                                  point,
                                                                  direction)
-        coords = self.getMarkCoordinates4Point(img, point, isUpTo,
+        coords = self.getMarkCoordinates4Point(imcp, point, isUpTo,
                                                colSlice, thresh, mark_color)
         return coords
 

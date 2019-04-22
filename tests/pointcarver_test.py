@@ -28,7 +28,6 @@ def loadJfile(path):
 def getPointListFromPointPath(ppath) -> [[int, int]]:
     "Get point list from ppath which should be a json file"
     jfile = loadJfile(ppath)
-    #
     plist = [[point['y'], point['x']] for point in jfile]
     return plist
 
@@ -44,7 +43,6 @@ def getCoordsDict(coordpath: str):
 def getCoordArrayFromPath(coordpath):
     "Get coordinate array from path"
     coords = getCoordsDict(coordpath)
-    #
     coords = [np.array(coord, dtype=np.int) for coord in coords.values()]
     return coords
 
@@ -114,9 +112,10 @@ class PointCarverTest(unittest.TestCase):
 
     def compareArrays(self, arr1, arr2, message):
         "Compare arrays for equality"
+        assert isinstance(arr1, np.ndarray) and isinstance(arr2, np.ndarray)
         result = arr1 == arr2
-        result = result.all()
-        self.assertTrue(result, message)
+        res = result.all()
+        self.assertTrue(res, message)
 
     def test_seammarker_calc_energy(self):
         "tests the calc energy function of pointcarver"
@@ -467,19 +466,47 @@ class PointCarverTest(unittest.TestCase):
         retval1, retval2 = marker.matchMarkCoordPairLength(
             uni1, uni2, colSlice)
         # pdb.set_trace()
-        self.assertEqual(retval1.shape, retval2.shape)
+        self.assertEqual(retval1[0][0], retval2[0][0],
+                           "First values of matched arrays are not equal")
+        self.assertEqual(retval1[-1][0], retval2[-1][0],
+                           "Last values of matched arrays are not equal")
 
+<<<<<<< Updated upstream:tests/pointcarver_test.py
+=======
+    def test_seammarker_matchMarkCoordPairLength_left_colSliceFalse(self):
+        colSlice = False
+        pair = getCoordPair(self.coords_left_path, colSlice)
+        coords = getCoordsDict(self.coords_left_path)
+        point1 = pair[0]
+        point2 = pair[1]
+        marker = SeamMarker(img=np.zeros((2, 2), dtype=np.uint8))
+        coord1 = coords[point1]
+        coord2 = coords[point2]
+        coord1_2d = coord1[:, :2]
+        coord2_2d = coord2[:, :2]
+        uni1 = np.unique(coord1_2d, axis=0)
+        uni2 = np.unique(coord2_2d, axis=0)
+        retval1, retval2 = marker.matchMarkCoordPairLength(
+            uni1, uni2, colSlice)
+        # pdb.set_trace()
+        self.assertEqual(retval1[0][1], retval2[0][1],
+                           "First values of matched arrays are not equal")
+        self.assertEqual(retval1[-1][1], retval2[-1][1],
+                           "Last values of matched arrays are not equal")
+
+>>>>>>> Stashed changes:tests/seammarker_test.py
     def test_seammarker_swapAndSliceMarkCoordPair_down_colSliceTrue(self):
         ""
         viet = self.loadImageCol()
-        m1 = os.path.join(self.npdir,
-                          'matchedMarkCoordPair1ColSliceTrueDown.npy')
-        m1 = np.load(m1)
-        m2 = os.path.join(self.npdir,
-                          'matchedMarkCoordPair2ColSliceTrueDown.npy')
-        m2 = np.load(m2)
         marker = SeamMarker(viet)
         colSlice = True
+        m1path = os.path.join(self.npdir,
+                              'matchedMarkCoordPair1ColSliceTrueDown.npy')
+        m2path = os.path.join(self.npdir,
+                              'matchedMarkCoordPair2ColSliceTrueDown.npy')
+        m1 = np.load(m1path)
+        m2 = np.load(m2path)
+        # pdb.set_trace()
         swaped = marker.swapAndSliceMarkCoordPair(m1, m2,
                                                   viet, colSlice)
         compimg = os.path.join(self.imagedir, 'slicedImage.png')
@@ -506,10 +533,18 @@ class PointCarverTest(unittest.TestCase):
                                                      uni1,
                                                      uni2,
                                                      colSlice)
+<<<<<<< Updated upstream:tests/pointcarver_test.py
         compimg = os.path.join(self.imagedir, 'slicedImage.png')
         compimg = np.array(Image.open(compimg))
         comp = compimg == segment
         self.compareArrays(compimg, segment, 
+=======
+        # pdb.set_trace()
+        compimg = os.path.join(self.imagedir, 'slicedImage.png')
+        compimg = np.array(Image.open(compimg))
+        self.compareArrays(compimg.copy(),
+                           segment,
+>>>>>>> Stashed changes:tests/seammarker_test.py
                            "Image slicing with mark coordinate has failed")
 
     def test_seammarker_segmentImageWithPointListSeamCoordinate(self):
@@ -518,7 +553,12 @@ class PointCarverTest(unittest.TestCase):
         marker=SeamMarker(img=np.zeros((2, 2), dtype=np.uint8))
         coords=loadJfile(self.coords_down_path)
         segments=marker.segmentImageWithPointListSeamCoordinate(
+<<<<<<< Updated upstream:tests/pointcarver_test.py
             image=img, coords=coords, colSlice=colSlice)
+=======
+            image=img, coords=coords['coords'], colSlice=colSlice)
+        # pdb.set_trace()
+>>>>>>> Stashed changes:tests/seammarker_test.py
         compsegs=self.loadSegments()
         message = "Segment {0} failed"
         compvals=[

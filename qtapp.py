@@ -14,7 +14,23 @@ import sys
 import os
 import json
 import numpy as np
+import io
+import base64
 import pdb
+
+
+# some utility function related to interface
+
+def img2str(img: Image) -> str:
+    f = io.BytesIO()
+    imbin = img.save(f, format='PNG')
+    imbin = f.getvalue()
+    return str(imbin, 'latin1', 'strict')
+
+
+def str2img(imdata: str, mode: str, size: (int, int)):
+    imbyte = bytes(imdata, 'latin1', 'strict')
+    return Image.frombytes(mode=mode, size=size, data=imbyte)
 
 
 class AppWindowInit(UIMainWindow):
@@ -52,8 +68,11 @@ class SceneCanvas(QtWidgets.QGraphicsScene):
     def renderPointsInEditor(self):
         "Render points of imagePoint in pointEditor"
         self.editor.clear()
-        pointjson = [{'y': int(p[0]),
-                      'x': int(p[1])} for p in self.imagePoint['points']]
+        pointjson = {
+            str(i): {'y': int(p[0]),
+                      'x': int(p[1])
+                     } for i, p in enumerate(self.imagePoint['points'])
+        }
         pointjson = json.dumps(pointjson, ensure_ascii=False, indent=2)
         self.editor.setPlainText(pointjson)
 
@@ -105,6 +124,7 @@ class AppWindowFinal(AppWindowInit):
         self.coords = None
         self.coords_direction = None
         self.coords_colSlice = None
+        self.coords_thresh = None
 
         #
         self.assetsdir = ""
@@ -267,8 +287,11 @@ class AppWindowFinal(AppWindowInit):
         impoint = self.imagePoint[imageId]
         path = impoint['points']['path']
         with open(path, 'r', encoding='utf-8', newline='\n') as f:
-            jobjstr = f.read()
-            self.pointEditor.setPlainText(jobjstr)
+            points = json.load(f)
+            self.pointEditor.setPlainText(json.dumps(points['points'],
+                                                     indent=2))
+            self.carveDirComboBox.setCurrentText(points['direction'])
+            self.thresholdSpin.setValue(int(points['thresh']))
 
     def getImageNameFromId(self):
         "Get image name from image id without extension"
@@ -279,9 +302,18 @@ class AppWindowFinal(AppWindowInit):
         imname, ext = stripExt(imname)
         return imname
 
+    def prepPointsObj(self):
+        "Prepare points json object for saving"
+        imarr, points, thresh, direction, markColor = self.getMarkerParams()
+        points = {}
+        points['thresh'] = thresh
+        points['direction'] = direction
+        points['points'] = json.loads(self.pointEditor.toPlainText())
+        return points
+
     def savePoints(self):
         "Save points in the editor from file dialog"
-        text = self.pointEditor.toPlainText()
+        points = self.prepPointsObj()
         imname = self.getImageNameFromId()
         pointsname = imname + "-points.json"
         path = os.path.join(self.assetsdir, pointsname)
@@ -292,8 +324,7 @@ class AppWindowFinal(AppWindowInit):
         fpath = fileName[0]
         if fpath:
             with open(fpath, "w", encoding='utf-8', newline='\n') as f:
-                jtext = json.loads(text)
-                json.dump(jtext, f, ensure_ascii=False, indent=2)
+                json.dump(points, f, ensure_ascii=False, indent=2)
 
     def loadImage(self):
         "Load image that is selected from table"
@@ -337,7 +368,8 @@ class AppWindowFinal(AppWindowInit):
         self.resetSceneImage()
         pointstr = self.pointEditor.toPlainText()
         pointdict = json.loads(pointstr)
-        points = [[int(p['y']), int(p['x'])] for p in pointdict]
+        points = [[int(p['y']), int(p['x'])] for p in pointdict.values()]
+        # print(points)
         self.sceneImagePoint['points'] = points
         self.renderSceneImagePoint()
 
@@ -399,9 +431,11 @@ class AppWindowFinal(AppWindowInit):
                                             points,
                                             direction)
         self.coords_colSlice = params[3]
-        self.image = imarr
+        self.image = Image.fromarray(imarr)
         self.coords = marker.getPointListSeamCoordinate(
             imarr, points, direction, thresh, markColor)
+        self.coords_thresh = thresh
+        self.coords_direction = direction
         return self.coords
 
     def prepCoords(self, coords):
@@ -415,6 +449,20 @@ class AppWindowFinal(AppWindowInit):
         #
         return coordinates
 
+    def prepCoordObject(self, coords, imname):
+        coordobj = {}
+        coordobj['coords'] = coords
+        coordobj['thresh'] = self.coords_thresh
+        coordobj['direction'] = self.coords_direction
+        coordobj['imageName'] = imname
+        coordobj['image'] = {
+            "data": img2str(self.image.copy()),
+            "size": self.image.size,
+            "mode": self.image.mode,
+            "format": self.image.format
+        }
+        return coordobj
+
     def saveSeamCoordinates(self):
         "Save seam coordinates to a file location"
         if self.coords == None:
@@ -423,8 +471,9 @@ class AppWindowFinal(AppWindowInit):
             coords = self.coords
         #
         coords = self.prepCoords(coords)
-        #
         imname = self.getImageNameFromId()
+        coordobj = self.prepCoordObject(coords, imname)
+        #
         path = os.path.join(self.assetsdir, imname + "-coordinates.json")
         fileName = QtWidgets.QFileDialog.getSaveFileName(
             self.centralwidget,
@@ -432,9 +481,10 @@ class AppWindowFinal(AppWindowInit):
             path,
             'Json Files (*.json)')
         fpath = fileName[0]
+        # pdb.set_trace()
         if fpath:
             with open(fpath, "w", encoding='utf-8', newline='\n') as f:
-                json.dump(coords, f, ensure_ascii=False, indent=2)
+                json.dump(coordobj, f, ensure_ascii=False, indent=2)
 
     def segmentImageWithSeamCoordinate(self):
         "Segment image with point coords"
@@ -451,11 +501,9 @@ class AppWindowFinal(AppWindowInit):
         imname = self.getImageNameFromId()
         path = os.path.join(self.assetsdir, "segments")
         fdir = QtWidgets.QFileDialog.getExistingDirectory(
-            self.centralwidget,
-            "Choose a Directory",
-            path,
-            QtWidgets.QFileDialog.ShowDirsOnly 
-            | QtWidgets.QFileDialog.DontResolveSymlinks)
+            self.centralwidget, "Choose a Directory", path,
+            QtWidgets.QFileDialog.ShowDirsOnly | QtWidgets.QFileDialog.DontResolveSymlinks
+        )
         if fdir:
             for i, segment in enumerate(segments):
                 if segment.size == 0:
@@ -470,8 +518,9 @@ class AppWindowFinal(AppWindowInit):
         segments = self.segmentImageWithSeamCoordinate()
         self.getSeamCoordinates()
         coords = self.prepCoords(self.coords)
-        text = self.pointEditor.toPlainText()
         imname = self.getImageNameFromId()
+        coordobj = self.prepCoordObject(coords, imname)
+        text = self.pointEditor.toPlainText()
         pointsname = imname + "-points.json"
         coordsname = imname + "-coordinates.json"
         fdir = QtWidgets.QFileDialog.getExistingDirectory(
@@ -483,7 +532,7 @@ class AppWindowFinal(AppWindowInit):
         if fdir:
             coordpath = os.path.join(fdir, coordsname)
             pointpath = os.path.join(fdir, pointsname)
-            saveJson(coordpath, coords)
+            saveJson(coordpath, coordobj)
             saveJson(pointpath, text)
             for i, seg in enumerate(segments):
                 fname = imname + "-seg-" + str(i) + ".png"
@@ -493,6 +542,7 @@ class AppWindowFinal(AppWindowInit):
 
     def resetSceneImage(self):
         "Deletes the carves on the image"
+        # pdb.set_trace()
         qtimg = ImageQt.ImageQt(self.image.copy())
         pixmap = QtGui.QPixmap.fromImage(qtimg)
         self.sceneImagePoint['image'] = pixmap
