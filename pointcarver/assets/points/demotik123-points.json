@@ -1,0 +1,26 @@
+{
+  "0": {
+    "color": "white",
+    "size": 3,
+    "direction": "left",
+    "threshold": 1,
+    "x": 1406,
+    "y": 11,
+    "coordinates": [
+      1406,
+      11
+    ]
+  },
+  "1": {
+    "color": "magenta",
+    "size": 3,
+    "direction": "left",
+    "threshold": 1,
+    "x": 1409,
+    "y": 81,
+    "coordinates": [
+      1409,
+      81
+    ]
+  }
+}

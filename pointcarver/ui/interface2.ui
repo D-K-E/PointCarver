@@ -114,10 +114,16 @@
            </attribute>
            <layout class="QVBoxLayout" name="verticalLayout_4">
             <item>
-             <widget class="QTextBrowser" name="pointsBrowser">
-              <property name="acceptRichText">
-               <bool>false</bool>
+             <widget class="QTableWidget" name="pointsTable">
+              <property name="columnCount">
+               <number>6</number>
               </property>
+              <column/>
+              <column/>
+              <column/>
+              <column/>
+              <column/>
+              <column/>
              </widget>
             </item>
             <item>
@@ -133,20 +139,6 @@
                 </item>
                 <item>
                  <widget class="QComboBox" name="pointDirectionComboBox"/>
-                </item>
-               </layout>
-              </item>
-              <item>
-               <layout class="QVBoxLayout" name="verticalLayout_13">
-                <item>
-                 <widget class="QLabel" name="pointCoordsLabel">
-                  <property name="text">
-                   <string>Point Coords</string>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QComboBox" name="pointCoordsComboBox"/>
                 </item>
                </layout>
               </item>
@@ -258,6 +250,13 @@
                <widget class="QPushButton" name="savePointsBtn">
                 <property name="text">
                  <string>Save Points</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="deletePointBtn">
+                <property name="text">
+                 <string>Delete Point</string>
                 </property>
                </widget>
               </item>
