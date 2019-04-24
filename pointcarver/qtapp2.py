@@ -6,6 +6,7 @@
 from src.seammarker import SeamMarker
 from src.utils import readImage, readPoints, parsePoints, stripExt
 from src.utils import qt_image_to_array, saveJson
+from src.utils import shapeCoordinate
 from ui.designerOutput2 import Ui_MainWindow as UIMainWindow
 from PIL import Image, ImageQt
 from PySide2 import QtGui, QtCore, QtWidgets
@@ -356,12 +357,9 @@ class AppWindowFinal(AppWindowInit):
         super().__init__()
         self.image = None
         self.pixmapImage = QtGui.QPixmap()
+        self.oldCarveImage = QtGui.QPixmap()
         self.imageId = None
         self.coords = None
-        self.coords_direction = None
-        self.coords_colSlice = None
-        self.coords_thresh = None
-
         #
         self.assetsdir = ""
         self.imagePoint = {}
@@ -399,7 +397,7 @@ class AppWindowFinal(AppWindowInit):
             sizeWidget=self.pointSizeSpin,
         )
         self.scene = SceneCanvas(self.pointEditor,
-                                 self.image)
+                                 self.pixmapImage)
         self.toolBox.setCurrentIndex(0)
 
         # table widget related
@@ -409,6 +407,7 @@ class AppWindowFinal(AppWindowInit):
         # hide show widgets
         self.globalThreshCBox.setCheckState(QtCore.Qt.Checked)
         self.globalCarveDirCBox.setCheckState(QtCore.Qt.Checked)
+        self.globalMarkColorCBox.setCheckState(QtCore.Qt.Checked)
 
         # Main Window Events
         self.main_window.setWindowTitle("Seam Marker using Points")
@@ -418,15 +417,17 @@ class AppWindowFinal(AppWindowInit):
             self.showGlobalCarveDir)
         self.globalThreshCBox.stateChanged.connect(
             self.showGlobalThresh)
+        self.globalMarkColorCBox.stateChanged.connect(
+            self.showGlobalMarkColor)
 
         # Buttons
         self.importBtn.clicked.connect(self.importImagePoints)
         self.loadBtn.clicked.connect(self.loadImage)
         self.drawPointsBtn.clicked.connect(self.drawEditorPoints)
-        # self.carveBtn.clicked.connect(self.markSeamsOnImage)
+        self.carveBtn.clicked.connect(self.markSeamsOnImage)
         self.savePointsBtn.clicked.connect(self.savePoints)
-        # self.saveCoordinatesBtn.clicked.connect(self.saveSeamCoordinates)
-        # self.saveBtn.clicked.connect(self.saveSegments)
+        self.saveCoordinatesBtn.clicked.connect(self.saveSeamCoordinates)
+        self.saveBtn.clicked.connect(self.saveSegments)
         # self.saveAllBtn.clicked.connect(self.saveAll)
         self.addPoint2ImageBtn.clicked.connect(self.importPoint)
         self.openPointBtn.clicked.connect(self.setPoints2PointEditor)
@@ -548,6 +549,12 @@ class AppWindowFinal(AppWindowInit):
         self.pixmapImage = pixmap.copy()
         self.renderScenePoints()
 
+    def resetSceneImage(self):
+        "Deletes the carves on the image"
+        qtimg = ImageQt.ImageQt(self.image.copy())
+        pixmap = QtGui.QPixmap.fromImage(qtimg)
+        self.loadImage2Scene(pixmap)
+
     def checkPointData(self):
         "Check point data"
         if 0 in self.pointEditor.pointsData.keys():
@@ -580,6 +587,8 @@ class AppWindowFinal(AppWindowInit):
         imname, ext = stripExt(imname)
         return imname
 
+    # save events
+
     def savePoints(self):
         "Save points to system"
         imname = self.getImageNameFromId()
@@ -592,8 +601,52 @@ class AppWindowFinal(AppWindowInit):
         fpath = fileName[0]
         if fpath:
             with open(fpath, "w", encoding='utf-8', newline='\n') as f:
-                json.dump(self.pointEditor.pointsData, 
+                json.dump(self.pointEditor.pointsData,
                           f, ensure_ascii=False, indent=2)
+
+    def saveSeamCoordinates(self):
+        "Save seam coordinates to a file location"
+        if self.coords is None:
+            coords = self.getSeamCoordinates()
+        else:
+            coords = self.coords
+        #
+        coords = self.prepCoords(coords)
+        #
+        imname = self.getImageNameFromId()
+        path = os.path.join(self.assetsdir, imname + "-coordinates.json")
+        fileName = QtWidgets.QFileDialog.getSaveFileName(
+            self.centralwidget,
+            "Save Mark Coordinates",
+            path,
+            'Json Files (*.json)')
+        fpath = fileName[0]
+        if fpath:
+            with open(fpath, "w", encoding='utf-8', newline='\n') as f:
+                json.dump(coords, f, ensure_ascii=False, indent=2)
+
+    def saveSegments(self):
+        "Save segments to file system"
+        segment_groups = self.segmentImageWithSeamCoordinate()
+        imname = self.getImageNameFromId()
+        path = os.path.join(self.assetsdir, "segments")
+        fdir = QtWidgets.QFileDialog.getExistingDirectory(
+            self.centralwidget,
+            "Choose a Directory",
+            path,
+            QtWidgets.QFileDialog.ShowDirsOnly
+            | QtWidgets.QFileDialog.DontResolveSymlinks)
+        if fdir:
+            for groupDirection, segments in segment_groups.items():
+                for i, segment in enumerate(segments):
+                    if segment.size == 0:
+                        return
+                    fname = os.path.join(
+                        fdir,
+                        imname + groupDirection + "-seg-" + str(i) + ".png")
+                    # pdb.set_trace()
+                    pilim = Image.fromarray(segment)
+                    pilim.save(fname)
 
     def setPoints2PointEditor(self):
         "Open a point file in point editor"
@@ -607,10 +660,149 @@ class AppWindowFinal(AppWindowInit):
             self.pointEditor.setPointsData2Table(pointsData)
 
     def resetSceneState(self):
-        self.image = None
+        # self.image = None
         self.pixmapImage = QtGui.QPixmap()
         self.scene.clear()
-        # self.pointEditor.clearData()
+
+    def getMarkerParams(self):
+        "Get seam marker parameters from point editor and ui"
+        points = list(self.pointEditor.pointsData.values())
+        threshCheckVal = False
+        if self.globalThreshCBox.isChecked():
+            globalThreshval = self.globalThreshSpinBox.value()
+            threshCheckVal = True
+            for p in points:
+                p['threshold'] = globalThreshval
+        #
+        carveCheckVal = False
+        if self.globalCarveDirCBox.isChecked():
+            globalDirect = self.carveDirComboBox.currentText()
+            carveCheckVal = True
+            for p in points:
+                p['direction'] = globalDirect
+        markCheckVal = False
+        if self.globalMarkColorCBox.isChecked():
+            globalMarkColor = self.markColorComboBox.currentText()
+            markCheckVal = True
+            for p in points:
+                p['color'] = globalMarkColor
+        #
+        img = self.getSceneImage()
+        return points, img, threshCheckVal, carveCheckVal, markCheckVal
+
+    def getGlobalMarkColor(self):
+        "Get mark color from ui"
+        markColor = self.markColorComboBox.currentText()  # gives text val
+        markColor = self.colors[markColor]  # gives a QGlobalColor object
+        markColor = QtGui.QColor(markColor)
+        markColor = list(markColor.getRgb()[:3])
+        return markColor
+
+    def getMarkColor(self, color: str):
+        "Get mark color from color dict"
+        markColor = self.colors[color]
+        markColor = QtGui.QColor(markColor)
+        markColor = list(markColor.getRgb()[:3])
+        return markColor
+
+    def getSceneImage(self) -> np.ndarray:
+        "Get scene image from scene canvas for marking"
+        image = self.scene.image.copy()
+        rgb32image = image.toImage().convertToFormat(QtGui.QImage.Format_RGB32)
+        imarr = qt_image_to_array(rgb32image)
+        imarr = imarr.astype(np.uint8)
+        if imarr.shape[2] > 3:
+            imarr = imarr[:, :, :3]
+        return imarr
+
+    def markPointSeamsOnImage(self):
+        "Mark seams on image"
+        params = self.getMarkerParams()
+        points = params[0]
+        image = params[1].copy()
+        threshCheckVal = params[2]
+        carveCheckVal = params[3]
+        marker = SeamMarker(image.copy(), plist=[])
+        for pointData in points:
+            x = pointData['x']
+            y = pointData['y']
+            direction = pointData['direction']
+            color = self.getMarkColor(pointData['color'])
+            thresh = pointData['threshold']
+            image, coord = marker.markPointSeamWithCoordinate(
+                img=image, point=[y, x],
+                direction=direction,
+                thresh=thresh,
+                mark_color=color)
+            pointData['seamCoordinates'] = shapeCoordinate(coord)
+        #
+        return image, points
+
+    def markSeamsOnImage(self):
+        self.resetSceneImage()
+        markedImage, self.coords = self.markPointSeamsOnImage()
+        height, width, channel = markedImage.shape
+        bytesPerLine = width * channel
+        qimage = QtGui.QImage(markedImage.data,
+                              width,
+                              height,
+                              bytesPerLine,
+                              QtGui.QImage.Format_RGB888)
+        qimage = qimage.rgbSwapped()
+        pixmap = QtGui.QPixmap.fromImage(qimage)
+        self.pixmapImage = pixmap.copy()
+        self.renderScenePoints()
+
+    def getPointSeamCoordinates(self):
+        "Get point seam coordinate from marker"
+        params = self.getMarkerParams()
+        points = params[0]
+        image = params[1].copy()
+        threshCheckVal = params[2]
+        carveCheckVal = params[3]
+        marker = SeamMarker(image.copy(), plist=[])
+        pointCoords = []
+        for pointData in points:
+            x = pointData['x']
+            y = pointData['y']
+            direction = pointData['direction']
+            color = self.getMarkColor(pointData['color'])
+            thresh = pointData['threshold']
+            coord = marker.getPointSeamCoordinate(img=image, point=[y, x],
+                                                  direction=direction,
+                                                  thresh=thresh,
+                                                  mark_color=color)
+            pointData['seamCoordinates'] = shapeCoordinate(coord)
+            pointCoords.append(pointData)
+        #
+        return pointCoords
+
+    def getSeamCoordinates(self):
+        "Get seam coordinate"
+        self.coords = self.getPointSeamCoordinates()
+        return self.coords
+
+    def segmentImageWithSeamCoordinate(self):
+        "Segment image with point coordinates"
+        params = self.getMarkerParams()
+        points = params[0]
+        image = params[1].copy()
+        threshCheckVal = params[2]
+        carveCheckVal = params[3]
+        marker = SeamMarker(image.copy(), plist=[])
+        if self.coords is None:
+            self.getSeamCoordinates()
+        segment_groups = marker.segmentImageWithPointListSeamCoordinate(
+            coords=self.coords, image=image.copy()
+        )
+        return segment_groups
+
+    def prepCoords(self, coords):
+        "Prepare pointData coords"
+        for pointData in coords:
+            coord = pointData['coordinates']
+            pointData['coordinates'] = coord.tolist()
+        return coords
 
     def showGlobalThresh(self):
         if self.globalThreshCBox.isChecked():
@@ -623,6 +815,12 @@ class AppWindowFinal(AppWindowInit):
             self.carveDirComboBox.show()
         else:
             self.carveDirComboBox.hide()
+
+    def showGlobalMarkColor(self):
+        if self.globalMarkColorCBox.isChecked():
+            self.markColorComboBox.show()
+        else:
+            self.markColorComboBox.hide()
 
     # Standard gui
     def closeApp(self, event):

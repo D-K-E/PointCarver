@@ -81,3 +81,21 @@ def readPoints(path):
     points = parsePoints(pointstr)
     return points
 
+
+def shapeCoordinate(coord: np.ndarray):
+    "Reshape coordinate to have [[y, x]] structure"
+    cshape = coord.shape
+    assert 2 in cshape or 3 in cshape
+    if cshape[0] == 2:
+        coord = coord.T
+    elif cshape[1] == 2:
+        pass
+    elif cshape[0] == 3:
+        coord = coord.T
+        coord = coord[:, :2]
+    elif cshape[1] == 3:
+        coord = coord[:, :2]
+    # obtain unique coords
+    uni1, index = np.unique(coord, return_index=True, axis=0)
+    uni1 = coord[np.sort(index), :]
+    return uni1

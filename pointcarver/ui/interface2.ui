@@ -105,7 +105,7 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>500</width>
+             <width>568</width>
              <height>509</height>
             </rect>
            </property>
@@ -115,6 +115,9 @@
            <layout class="QVBoxLayout" name="verticalLayout_4">
             <item>
              <widget class="QTableWidget" name="pointsTable">
+              <property name="sortingEnabled">
+               <bool>true</bool>
+              </property>
               <property name="columnCount">
                <number>6</number>
               </property>
@@ -292,9 +295,9 @@
              <item>
               <layout class="QVBoxLayout" name="verticalLayout_10">
                <item>
-                <widget class="QLabel" name="markColorLabel">
+                <widget class="QCheckBox" name="globalMarkColorCBox">
                  <property name="text">
-                  <string>Mark Color</string>
+                  <string>Global Mark Color</string>
                  </property>
                 </widget>
                </item>
