@@ -298,7 +298,70 @@ class SeamMarker(SeamFuncs):
         # indexArray[0] == [rowPosition, colPosition, colorPosition]
         return indexArray
 
-    def matchMarkCoordPairLength(self, coord1, coord2, colSlice=True):
+    def prepCoords2Matching(self, coord1, coord2,
+                            colSlice: bool,
+                            isUpTo: bool):
+        "Prepare coordinates to matching"
+        if colSlice is True:
+            # sort by y val
+            ind1 = np.argsort(coord1[:, 0])
+            coord1 = coord1[ind1]
+            ind2 = np.argsort(coord2[:, 0])
+            coord2 = coord2[ind2]
+            #
+            if isUpTo is False:
+                # so their first values should match
+                COORD1KEEP = coord1[0, 1]  # x val
+                COORD2KEEP = coord2[0, 1]  # x val
+                coord1val = coord1[0, 0]  # y val
+                coord2val = coord2[0, 0]  # y val
+                # make sure coord1 is the one with smaller value
+                if coord1val >= coord2val:
+                    # meaning coord1 is shorter than coord2
+                    coord1, coord2 = coord2, coord1
+                    coord1val, coord2val = coord2val, coord1val
+            else:
+                # their last values should match
+                COORD1KEEP = coord1[-1, 1]  # x val
+                COORD2KEEP = coord2[-1, 1]  # x val
+                coord1val = coord1[-1, 0]  # y val
+                coord2val = coord2[-1, 0]  # y val
+
+        elif colSlice is False:
+            # sort by x val
+            ind1 = np.argsort(coord1[:, 1])
+            coord1 = coord1[ind1]
+            ind2 = np.argsort(coord2[:, 1])
+            coord2 = coord2[ind2]
+            #
+            if isUpTo is False:
+                COORD1KEEP = coord1[0, 0]
+                COORD2KEEP = coord2[0, 0]
+                coord1val = coord1[0, 1]
+                coord2val = coord2[0, 1]
+            else:
+                COORD1KEEP = coord1[-1, 0]
+                COORD2KEEP = coord2[-1, 0]
+                coord1val = coord1[-1, 1]
+                coord2val = coord2[-1, 1]
+                if coord2val >= coord1val:
+                    # meaning coord2 is longer than coord1
+                    coord1, coord2 = coord2, coord1
+                    coord1val, coord2val = coord2val, coord1val
+
+        else:
+            raise ValueError(
+                "colSlice is {0}. It should be a boolean"
+                "value".format(colSlice)
+            )
+        # pdb.set_trace()
+
+        #
+        return coord1, coord2, COORD1KEEP, COORD2KEEP, coord1val, coord2val
+
+    def matchMarkCoordPairLength(self, coord1, coord2,
+                                 colSlice: bool,
+                                 isUpTo: bool):
         """Match mark coordinate pairs
 
         Purpose
@@ -311,7 +374,9 @@ class SeamMarker(SeamFuncs):
 
         The logic is simple. If we are dealing with a column slice, then
         the y values should match, since we need to have equal column length
-        to fill the column mask later on.
+        to fill the column mask later on. That's why we sort the coordinates
+        by y value at first, to make sure that their top points are closest
+        to each other.
 
         If we are dealing with a row slice, then the x values match since
         we need to have equal line length to fill the line mask later on
@@ -324,34 +389,22 @@ class SeamMarker(SeamFuncs):
         """
         assert coord1.shape[1] == 2 and coord2.shape[1] == 2
         # col slice determines the axis of match
-        if colSlice is True:
-            COORD1KEEP = coord1[0, 1]  # x val
-            COORD2KEEP = coord2[0, 1]  # x val
-            coord1val = coord1[0, 0]  # y val
-            coord2val = coord2[0, 0]  # y val
-        elif colSlice is False:
-            COORD1KEEP = coord1[0, 0]
-            COORD2KEEP = coord2[0, 0]
-            coord1val = coord1[0, 1]
-            coord2val = coord2[0, 1]
-        else:
-            raise ValueError(
-                "colSlice is {0}. It should be a boolean"
-                "value".format(colSlice)
-            )
-        # pdb.set_trace()
-
-        # make sure coord1 is the one with smaller value
-        if coord1val >= coord2val:
-            coord1, coord2 = coord2, coord1
-            coord1val, coord2val = coord2val, coord1val
-
+        (coord1, coord2,
+         COORD1KEEP, COORD2KEEP,
+         coord1val, coord2val) = self.prepCoords2Matching(
+             coord1, coord2, colSlice, isUpTo)
         fillvals = [i for i in range(coord2val-1, coord1val-1, -1)]
         for i in fillvals:
             if colSlice is True:  # column slice
-                coord2 = np.insert(coord2, 0, [i, COORD2KEEP], axis=0)
+                if isUpTo is False:
+                    coord2 = np.insert(coord2, 0, [i, COORD2KEEP], axis=0)
+                else:
+                    coord2 = np.append(coord2, [i, COORD2KEEP], axis=0)
             else:
-                coord2 = np.insert(coord2, 0, [COORD2KEEP, i], axis=0)
+                if isUpTo is False:
+                    coord2 = np.insert(coord2, 0, [COORD2KEEP, i], axis=0)
+                else:
+                    coord2 = np.append(coord2, [COORD2KEEP, i], axis=0)
         return coord1, coord2
 
     def swapAndSliceMarkCoordPair(self, markCoord1, markCoord2,
@@ -372,6 +425,7 @@ class SeamMarker(SeamFuncs):
                 endx = markCoord2[i, 1]
                 mask[yval, startx:endx] = imcp[yval, startx:endx]
         else:
+            # pdb.set_trace()
             fsum = np.sum(markCoord1[:, 0] - markCoord2[:, 0], dtype=np.int)
             if fsum >= 0:
                 markCoord1, markCoord2 = markCoord2, markCoord1
@@ -389,16 +443,19 @@ class SeamMarker(SeamFuncs):
     def sliceImageWithMarkCoordPair(self, image: np.ndarray,
                                     markCoord1: np.ndarray,
                                     markCoord2: np.ndarray,
-                                    colSlice: bool) -> np.ndarray:
+                                    colSlice: bool,
+                                    isUpTo: bool) -> np.ndarray:
         "Slice image with mark coordinate pair"
         imcp = np.copy(image)
         # pdb.set_trace()
         assert markCoord1.shape[1] == 2  # [y,x], [y2,x2], etc
         assert markCoord2.shape[1] == 2
         if markCoord1.shape[0] != markCoord2.shape[0]:
+            pdb.set_trace()
             markCoord1, markCoord2 = self.matchMarkCoordPairLength(markCoord1,
-                                                                   markCoord2)
-            # pdb.set_trace()
+                                                                   markCoord2,
+                                                                   colSlice,
+                                                                   isUpTo)
         #
         imcp = self.swapAndSliceMarkCoordPair(markCoord1, markCoord2,
                                               imcp, colSlice)
@@ -533,12 +590,19 @@ class SeamMarker(SeamFuncs):
         return markedImage
 
     def makePairsFromPoints(self, plist: list,
-                            colSlice: bool):
+                            colSlice: bool,
+                            isXFirst=False):
         "Make pairs from points by ordering them according to x or y"
         if colSlice is True:
-            plist.sort(key=lambda p: p[1])
+            if isXFirst is False:
+                plist.sort(key=lambda p: p[1])
+            else:
+                plist.sort(key=lambda p: p[0])
         else:
-            plist.sort(key=lambda p: p[0])
+            if isXFirst is False:
+                plist.sort(key=lambda p: p[0])
+            else:
+                plist.sort(key=lambda p: p[1])
         #
         pairs = []
         for i in range(len(plist)):
@@ -602,20 +666,34 @@ class SeamMarker(SeamFuncs):
             img, point, isUpTo, colSlice, thresh, mark_color)
         return markedImage, coord
 
-    def markPointListSeam(self, img, plist, direction="down",
-                          thresh=3, mark_color=[0, 255, 0]):
-        "Mark seam that passes through the regions of each point"
-        markedImage = self.markPointSeam(img, plist[0],
-                                         direction=direction,
-                                         thresh=thresh,
-                                         mark_color=mark_color)
-        for point in plist[1:]:
-            markedImage = self.markPointSeam(markedImage, point,
-                                             direction=direction,
-                                             thresh=thresh,
-                                             mark_color=mark_color)
+    def markPointListSeam(self, img, plist: dict, mark_color=[0, 255, 0]):
+        """
+        Mark seam that passes through the regions of each point
+
+        Description
+        -------------
+
+        We assume that each key value pair of the plist, contains
+        the following pairs in their values:
+        'threshold': int,
+        'coordinates': (int, int),
+        'x': int,
+        'y': int,
+        'direction': str
+        'color': [int, int, int]
+        """
+        imcp = img.copy()
+        for i, point in plist.items():
+            direction = point['direction']
+            thresh = point['threshold']
+            point_coord = (point['y'], point['x'])
+            imcp = self.markPointSeam(imcp,
+                                      point_coord,
+                                      direction=direction,
+                                      thresh=thresh,
+                                      mark_color=mark_color)
         #
-        return markedImage
+        return imcp
 
     def getPointSeamCoordinate(self, img, point,
                                direction="down",
@@ -642,26 +720,31 @@ class SeamMarker(SeamFuncs):
 
         return coords
 
-    def makeCoordGroups(self, pointDataCoords):
+    def makeCoordGroups(self, pointDataCoords: dict):
         "make coordinate groups based on carve directions"
         groups = {"up":[], "down": [], "left": [], "right": []}
-        for pointData in pointDataCoords:
+        for i, pointData in pointDataCoords.items():
             groups[pointData['direction']].append(pointData)
         return groups
 
     def segmentImageWithPointListSeamCoordinate(self,
-                                                coords,
+                                                coords: dict,
                                                 image):
         "Segment the image using mark coordinates of a point list"
         groups = self.makeCoordGroups(coords)
         segment_groups = {"up": [], "down": [], "left": [], "right": []}
         for groupDirection, pointDataCoords in groups.items():
+            # pdb.set_trace()
             colSlice, isUpTo = self.prepDirection(groupDirection)
-            plist = [pointData['coordinates'] for pointData in pointDataCoords]
+            plist = [(pointData['x'],
+                      pointData['y']) for pointData in pointDataCoords]
             pointCoordMap = {
-                pointData['coordinates']:pointData['seamCoordinates'] for pointData in pointDataCoords
+                (pointData['x'],
+                 pointData['y']
+                 ):pointData['seamCoordinates'] for pointData in pointDataCoords
             }
-            pairs = self.makePairsFromPoints(plist, colSlice)
+            pairs = self.makePairsFromPoints(plist, colSlice,
+                                             isXFirst=True)
             segments = []
             for pair in pairs:
                 point1 = pair[0]

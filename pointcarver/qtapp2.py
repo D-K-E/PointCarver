@@ -666,25 +666,25 @@ class AppWindowFinal(AppWindowInit):
 
     def getMarkerParams(self):
         "Get seam marker parameters from point editor and ui"
-        points = list(self.pointEditor.pointsData.values())
+        points = self.pointEditor.pointsData.copy()
         threshCheckVal = False
         if self.globalThreshCBox.isChecked():
             globalThreshval = self.globalThreshSpinBox.value()
             threshCheckVal = True
-            for p in points:
+            for i, p in points.items():
                 p['threshold'] = globalThreshval
         #
         carveCheckVal = False
         if self.globalCarveDirCBox.isChecked():
             globalDirect = self.carveDirComboBox.currentText()
             carveCheckVal = True
-            for p in points:
+            for i, p in points.items():
                 p['direction'] = globalDirect
         markCheckVal = False
         if self.globalMarkColorCBox.isChecked():
             globalMarkColor = self.markColorComboBox.currentText()
             markCheckVal = True
-            for p in points:
+            for i, p in points.items():
                 p['color'] = globalMarkColor
         #
         img = self.getSceneImage()
@@ -723,7 +723,7 @@ class AppWindowFinal(AppWindowInit):
         threshCheckVal = params[2]
         carveCheckVal = params[3]
         marker = SeamMarker(image.copy(), plist=[])
-        for pointData in points:
+        for i, pointData in points.items():
             x = pointData['x']
             y = pointData['y']
             direction = pointData['direction']
@@ -756,13 +756,12 @@ class AppWindowFinal(AppWindowInit):
     def getPointSeamCoordinates(self):
         "Get point seam coordinate from marker"
         params = self.getMarkerParams()
-        points = params[0]
+        points = params[0].copy()
         image = params[1].copy()
         threshCheckVal = params[2]
         carveCheckVal = params[3]
         marker = SeamMarker(image.copy(), plist=[])
-        pointCoords = []
-        for pointData in points:
+        for i, pointData in points.items():
             x = pointData['x']
             y = pointData['y']
             direction = pointData['direction']
@@ -773,9 +772,8 @@ class AppWindowFinal(AppWindowInit):
                                                   thresh=thresh,
                                                   mark_color=color)
             pointData['seamCoordinates'] = shapeCoordinate(coord)
-            pointCoords.append(pointData)
         #
-        return pointCoords
+        return points
 
     def getSeamCoordinates(self):
         "Get seam coordinate"
@@ -799,9 +797,9 @@ class AppWindowFinal(AppWindowInit):
 
     def prepCoords(self, coords):
         "Prepare pointData coords"
-        for pointData in coords:
-            coord = pointData['coordinates']
-            pointData['coordinates'] = coord.tolist()
+        for i, pointData in coords.items():
+            coord = pointData['seamCoordinates']
+            pointData['seamCoordinates'] = coord.tolist()
         return coords
 
     def showGlobalThresh(self):

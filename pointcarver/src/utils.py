@@ -99,3 +99,23 @@ def shapeCoordinate(coord: np.ndarray):
     uni1, index = np.unique(coord, return_index=True, axis=0)
     uni1 = coord[np.sort(index), :]
     return uni1
+
+# Debug related
+
+
+def drawMark2Image(image: np.ndarray,
+                   coord: np.ndarray,
+                   imstr: str):
+    zeroimg = np.zeros_like(image, dtype=np.uint8)
+    imcp = image.copy()
+    assert coord.shape[1] == 2
+    for i in range(coord.shape[0]):
+        yx = coord[i, :]
+        imcp[yx[0], yx[1], :] = 255
+        zeroimg[yx[0], yx[1], :] = 255
+    #
+    zeroname = imstr + "-zero.png"
+    name = imstr + ".png"
+    Image.fromarray(imcp).save(name)
+    Image.fromarray(zeroimg).save(zeroname)
+    return imcp, zeroimg

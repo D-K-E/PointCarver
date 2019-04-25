@@ -3794,7 +3794,7 @@
     ]
   },
   "1": {
-    "color": "green",
+    "color": "red",
     "size": 3,
     "direction": "down",
     "threshold": 1,
