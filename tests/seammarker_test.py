@@ -65,7 +65,7 @@ def prepPointCoord(ppath: str):
     jfile = loadJfile(ppath)
     fcopy = jfile.copy()
     for i, pdata in jfile.items():
-        fcopy[i]['seamCoordinates'] = np.array(pdata['seamCoordinates'], 
+        fcopy[i]['seamCoordinates'] = np.array(pdata['seamCoordinates'],
                                                dtype=np.int)
     #
     return fcopy
@@ -94,7 +94,7 @@ def getCoordPair(coordpath, colSlice: bool):
     "Get coordinate pair from coordpath and image path"
     img = np.zeros((2, 2), dtype=np.uint8)
     marker = SeamMarker(img)
-    coords =  getCoordsDict(coordpath)
+    coords = getCoordsDict(coordpath)
     plist = list(coords.keys())
     pairs = marker.makePairsFromPoints(plist, colSlice=colSlice)
     return pairs[0]
@@ -139,7 +139,265 @@ class PointCarverTest(unittest.TestCase):
                                            'vietHard-points-up.json')
         self.points_left_path = os.path.join(jsondir,
                                              'demotik-points-left.json')
-        self.thresh_val = 5
+
+        self.GEN_SLICE_IMAGE = False
+        self.sliceImagePath = os.path.join(self.imagedir,
+                                           'slicedImage.png')
+        self.GEN_SLICE_MARK = False
+        self.slicemarkPath = os.path.join(self.imagedir,
+                                          'slicemark.png')
+        self.GEN_SLICEROW_MARK = False
+        self.sliceRowMarkPath = os.path.join(self.imagedir,
+                                             'slicerowmark.png')
+        self.GEN_ROW_SLICE = False
+        self.rowslicePath = os.path.join(self.imagedir,
+                                         'rowslice.png')
+        self.GEN_COL_SLICE = False
+        self.colslicePath = os.path.join(self.imagedir,
+                                         'colslice.png')
+        self.GEN_MARK_COLS = False
+        self.markColumnsImagePath = os.path.join(self.imagedir,
+                                                 'markedColumnsImage.png')
+        self.GEN_MARK_ROWS = False
+        self.markRowsImagePath = os.path.join(self.imagedir,
+                                              'markedRowsImage.png')
+        self.GEN_ROW_ADDED = False
+        self.rowAddedImagePath = os.path.join(self.imagedir,
+                                              "rowAddedImage.png")
+        self.GEN_COL_ADDED = False
+        self.columnAddedImagePath = os.path.join(self.imagedir,
+                                                 "columnAddedImage.png")
+        self.GEN_COL_MARKED = False
+        self.colMarkedImagePath = os.path.join(self.imagedir,
+                                               "colMarkedImage.png")
+        self.GEN_ROW_MARKED = False
+        self.rowMarkedImagePath = os.path.join(self.imagedir,
+                                               "rowMarkedImage.png")
+        self.GEN_SEGMENTS = False
+        self.segmentPaths = [
+            os.path.join(self.imagedir, str(i) + '-viet.png'
+                         ) for i in range(28)
+        ]
+        self.GEN_SLICE_MAT = False
+        self.slicemat_path = os.path.join(self.npdir,
+                                          'vietSliceMatrix.npy')
+        self.GEN_SLICE_BACKTRACK_MAT = False
+        self.slicemat_backtrack_path = os.path.join(self.npdir,
+                                                    'vietSliceBacktrack.npy')
+        self.GEN_MATCH_COORD_PAIRS = False
+        self.match_coord_path = os.path.join(
+            self.npdir,
+            "matchedMarkCoordPair{0}ColSliceTrueDown.npy"
+        )
+
+    def generateSliceMatrix(self):
+        if self.GEN_SLICE_MAT:
+            img = self.loadImageCol()
+            viet = np.array(img.copy(), dtype=np.uint8)
+            vietslice = viet[:, 550:600]
+            carver = SeamMarker(img=None)
+            emap = carver.calc_energy(viet.copy())
+            mat, backtrack = carver.minimum_seam(img=vietslice.copy(),
+                                                 emap=emap)
+            np.save(self.slicemat_path, mat)
+
+    def generateBacktrackSliceMatrix(self):
+        if self.GEN_SLICE_BACKTRACK_MAT:
+            vietcp = self.loadImageCol()
+            vietslice = vietcp[:, 550:600]
+            carver = SeamMarker(img=vietcp)
+            emap = carver.calc_energy(vietslice.copy())
+            mat, backtrack = carver.minimum_seam(img=vietslice, emap=emap)
+            np.save(self.slicemat_backtrack_path, backtrack)
+
+    def generateMatchCoordinateMatrix(self, colSlice: bool,
+                                      isUpTo: bool):
+        if self.GEN_MATCH_COORD_PAIRS:
+            firstPath = self.match_coord_path.format(str(1))
+            secondPath = self.match_coord_path.format(str(2))
+            coords = getCoordsDict(self.coords_down_path)
+            pair = getCoordPair(self.coords_down_path, colSlice)
+            p1 = pair[0]
+            p2 = pair[1]
+            coord1 = coords[p1]
+            coord2 = coords[p2]
+            marker = SeamMarker(img=np.zeros((2, 2), dtype=np.uint8))
+            markCoord1, markCoord2 = marker.matchMarkCoordPairLength(
+                coord1, coord2, colSlice, isUpTo
+            )
+            np.save(firstPath, markCoord1)
+            np.save(secondPath, markCoord2)
+
+    def generateSlicedImage(self):
+        if self.GEN_SLICE_IMAGE:
+            viet = self.loadImageCol()
+            m1 = os.path.join(self.npdir,
+                              'matchedMarkCoordPair1ColSliceTrueDown.npy')
+            m1 = np.load(m1)
+            m2 = os.path.join(self.npdir,
+                              'matchedMarkCoordPair2ColSliceTrueDown.npy')
+            m2 = np.load(m2)
+            marker = SeamMarker(viet)
+            colSlice = True
+            swaped = marker.swapAndSliceMarkCoordPair(m1, m2,
+                                                      viet, colSlice)
+            Image.fromarray(swaped).save(self.sliceImagePath)
+
+    def generateSliceMark(self):
+        if self.GEN_SLICE_MARK:
+            viet = self.loadImageCol()
+            vietcp = viet.copy()
+            vietslice = vietcp[:, 550:600]
+            carver = SeamMarker(img=vietcp)
+            slicp = vietslice.copy()
+            imcp, mask = carver.mark_column(slicp)
+            Image.fromarray(imcp).save(self.slicemarkPath)
+
+    def generateSliceRowMark(self):
+        if self.GEN_SLICEROW_MARK:
+            demot = self.loadImageRow()
+            carver = SeamMarker(img=demot)
+            clip = demot[150:250, :]
+            clip, mask = carver.mark_row(clip)
+            Image.fromarray(clip).save(self.sliceRowMarkPath)
+
+    def generateRowSlice(self):
+        if self.GEN_ROW_SLICE:
+            demot = self.loadImageRow()
+            points = getPointListFromPointPath(self.points_left_path)
+            point = points[0]
+            carver = SeamMarker(demot)
+            rowslice = carver.getRowSliceOnPoint(point, demot.copy(),
+                                                 isUpTo=True,
+                                                 thresh=5)[0]
+            Image.fromarray(rowslice).save(self.rowslicePath)
+
+    def generateColSlice(self):
+        if self.GEN_COL_SLICE:
+            viet = self.loadImageCol()
+            points = getPointListFromPointPath(self.points_down_path)
+            point = points[0]
+            marker = SeamMarker(viet)
+            colslice = marker.getColumnSliceOnPoint(point,
+                                                    viet,
+                                                    thresh=5,
+                                                    isUpTo=False)[0]
+            Image.fromarray(colslice).save(self.colslicePath)
+
+    def generateMarkedColumnsImage(self):
+        if self.GEN_MARK_COLS:
+            viet = self.loadImageCol()
+            marker = SeamMarker(viet)
+            points = loadJfile(self.points_down_path)
+            markedImage = marker.markPointListSeam(img=viet,
+                                                   plist=points)
+            Image.fromarray(markedImage).save(self.markColumnsImagePath)
+
+    def generateMarkedRowsImage(self):
+        if self.GEN_MARK_ROWS:
+            demot = self.loadImageRow()
+            marker = SeamMarker(demot)
+            points = loadJfile(self.points_left_path)
+            markedImage = marker.markPointListSeam(img=demot,
+                                                   plist=points)
+            Image.fromarray(markedImage).save(self.markRowsImagePath)
+
+    def generateRowAdded(self):
+        if self.GEN_ROW_ADDED:
+            isUpTo = True
+            demot = self.loadImageRow()
+            points = getPointListFromPointPath(self.points_left_path)
+            point = points[0]
+            marker = SeamMarker(demot)
+            before = 0
+            after = 62
+            rowslice = os.path.join(self.imagedir, 'rowslice.png')
+            rowslice = np.array(Image.open(rowslice))
+            rowslicecp = rowslice.copy()
+            rowslicehalf = rowslicecp.shape[0] // 2
+            rowslicecp[rowslicehalf:rowslicehalf+3, :] = 255
+            addedimg = marker.addRowSlice2Image(demot,
+                                                point,
+                                                beforeAfterCoord=(
+                                                    before, after),
+                                                imgSlice=rowslicecp,
+                                                isUpTo=isUpTo)
+            Image.fromarray(addedimg).save(self.rowAddedImagePath)
+
+    def generateColumnAdded(self):
+        if self.GEN_COL_ADDED:
+            isUpTo = False
+            viet = self.loadImageCol()
+            points = getPointListFromPointPath(self.points_down_path)
+            point = points[0]
+            marker = SeamMarker(viet)
+            before = 138
+            after = 180
+            compcolslice = os.path.join(self.imagedir, 'colslice.png')
+            compimg = np.array(Image.open(compcolslice))
+            compcp = compimg.copy()
+            compcphalf = compcp.shape[1] // 2
+            compcp[:, compcphalf:compcphalf+3] = 255
+            # pdb.set_trace()
+            addedimg = marker.addColumnSlice2Image(viet,
+                                                   point,
+                                                   beforeAfterCoord=(before,
+                                                                     after),
+                                                   imgSlice=compcp,
+                                                   isUpTo=isUpTo)
+            Image.fromarray(addedimg).save(self.columnAddedImagePath)
+
+    def generateColMarkedImage(self):
+        if self.GEN_COL_MARKED:
+            isUpTo = False
+            colSlice = True
+            viet = self.loadImageCol()
+            points = loadJfile(self.points_down_path)
+            point = points["0"]
+            point_coord = (point['y'], point['x'])
+            marker = SeamMarker(viet)
+            markedImage = marker.markSeam4Point(viet,
+                                                point_coord,
+                                                isUpTo,
+                                                point['threshold'],
+                                                colSlice,
+                                                mark_color=[0, 255, 0]
+                                                )
+            Image.fromarray(markedImage).save(self.colMarkedImagePath)
+
+    def generateRowMarkedImage(self):
+        if self.GEN_ROW_MARKED:
+            isUpTo = True
+            colSlice = False
+            demot = self.loadImageRow()
+            points = loadJfile(self.points_left_path)
+            point = points["2"]
+            point_coord = (point['y'], point['x'])
+            marker = SeamMarker(demot)
+            markedImage = marker.markSeam4Point(demot,
+                                                point_coord,
+                                                isUpTo,
+                                                point['threshold'],
+                                                colSlice,
+                                                mark_color=[0, 255, 0]
+                                                )
+            Image.fromarray(markedImage).save(self.rowMarkedImagePath)
+
+    def generateSegments(self):
+        if self.GEN_SEGMENTS:
+            img = self.loadImageCol()
+            marker = SeamMarker(img=np.zeros((2, 2), dtype=np.uint8))
+            coords = prepPointCoord(self.coords_down_path)
+            segments = marker.segmentImageWithPointListSeamCoordinate(
+                image=img, coords=coords)
+            paths = self.segmentPaths
+            [
+                [
+                    Image.fromarray(segs[i]).save(paths[i]) for i in range(
+                        len(segs)
+                    )
+                ] for direction, segs in segments.items()
+            ]
 
     def loadImage(self, path):
         pilim = Image.open(path)
@@ -151,7 +409,7 @@ class PointCarverTest(unittest.TestCase):
         jfile = loadJfile(cpath)
         image = jfile['image']
         img = str2img(image['data'])
-                      
+
         return img
 
     def loadImageCol(self):
@@ -165,8 +423,8 @@ class PointCarverTest(unittest.TestCase):
     def loadSegments(self):
         ""
         segments = []
-        for i in range(4):
-            segpath = os.path.join(self.imagedir, str(i) + '-viet.png')
+        for i in range(28):
+            segpath = self.segmentPaths[i]
             seg = np.array(Image.open(segpath))
             segments.append(seg)
         return segments
@@ -206,7 +464,7 @@ class PointCarverTest(unittest.TestCase):
         emap = carver.calc_energy(vietslice)
         mat, backtrack = carver.minimum_seam(img=vietslice, emap=emap)
         self.compareArrays(mat, compmatrix,
-            "Point carver minimum seam function emap given, checking matrix")
+                           "Point carver minimum seam function emap given, checking matrix")
 
     def test_seammarker_minimum_seam_emap_backtrack(self):
         backtrackPath = os.path.join(self.npdir, 'vietSliceBacktrack.npy')
@@ -258,7 +516,6 @@ class PointCarverTest(unittest.TestCase):
         clip = demot[150:250, :]
         clip, mask = carver.mark_row(clip)
         # pdb.set_trace()
-        compmark = clip == compimg
         self.compareArrays(
             clip, compimg,
             "Point carver mark row function emap not given, "
@@ -275,7 +532,7 @@ class PointCarverTest(unittest.TestCase):
         pointCol = point[1]
         colBefore, colAfter = carver.expandPointCoordinate(
             col_nb,
-            coord=pointCol, thresh=self.thresh_val)
+            coord=pointCol, thresh=5)
         # colnb_comp = 872
         colbef_comp, col_after_comp = 65, 107
         # pdb.set_trace()
@@ -309,7 +566,7 @@ class PointCarverTest(unittest.TestCase):
         point = points[0]
         carver = SeamMarker(demot)
         rowslice = carver.getRowSliceOnPoint(point, demot, isUpTo=True,
-                                             thresh=self.thresh_val)[0]
+                                             thresh=5)[0]
         compimg = os.path.join(self.imagedir, 'rowslice.png')
         compimg = np.array(Image.open(compimg))
         self.compareArrays(rowslice, compimg,
@@ -324,7 +581,7 @@ class PointCarverTest(unittest.TestCase):
         marker = SeamMarker(viet)
         colslice = marker.getColumnSliceOnPoint(point,
                                                 viet,
-                                                thresh=self.thresh_val,
+                                                thresh=5,
                                                 isUpTo=False)[0]
         # pdb.set_trace()
         compimg = os.path.join(self.imagedir, 'colslice.png')
@@ -340,7 +597,7 @@ class PointCarverTest(unittest.TestCase):
         marker = SeamMarker(viet)
         colslice = marker.sliceOnPoint(viet,
                                        point,
-                                       thresh=self.thresh_val,
+                                       thresh=5,
                                        isUpTo=False,
                                        colSlice=True)
         # pdb.set_trace()
@@ -358,7 +615,7 @@ class PointCarverTest(unittest.TestCase):
         marker = SeamMarker(demot)
         rowslice = marker.sliceOnPoint(demot,
                                        point,
-                                       thresh=self.thresh_val,
+                                       thresh=5,
                                        isUpTo=True,
                                        colSlice=False)
         rowslice = rowslice[0]
@@ -391,7 +648,7 @@ class PointCarverTest(unittest.TestCase):
         compimg = os.path.join(self.imagedir, 'columnAddedImage.png')
         compimg = np.array(Image.open(compimg))
         self.compareArrays(
-            addedimg, compimg, 
+            addedimg, compimg,
             "Added column does not give the expected added image"
         )
 
@@ -443,7 +700,7 @@ class PointCarverTest(unittest.TestCase):
         compimg = os.path.join(self.imagedir, 'columnAddedImage.png')
         compimg = np.array(Image.open(compimg))
         self.compareArrays(
-            addedimg, compimg, 
+            addedimg, compimg,
             "Added column does not give the expected added image"
         )
 
@@ -588,7 +845,7 @@ class PointCarverTest(unittest.TestCase):
         coord2 = coords[point2]
         retval1, retval2 = marker.matchMarkCoordPairLength(
             coord1, coord2, colSlice, isUpTo)
-        pdb.set_trace()
+        # pdb.set_trace()
         self.assertEqual(retval1[-1][0], retval2[-1][0])
 
     def test_seammarker_matchMarkCoordPairLength_left_colSliceFalse(self):
@@ -601,16 +858,14 @@ class PointCarverTest(unittest.TestCase):
         marker = SeamMarker(img=np.zeros((2, 2), dtype=np.uint8))
         coord1 = coords[point1]
         coord2 = coords[point2]
-        pdb.set_trace()
+        # pdb.set_trace()
         retval1, retval2 = marker.matchMarkCoordPairLength(
             coord1, coord2, colSlice, isUpTo)
-        self.compareArrays(retval1[0], retval2[0], 
-                           "First values of matched arrays are not equal")
-        self.compareArrays(retval1[-1], retval2[-1],
-                           "Last values of matched arrays are not equal")
+        self.assertEqual(retval1[-1][1], retval2[-1][1])
 
     def test_seammarker_swapAndSliceMarkCoordPair_down_colSliceTrue(self):
         viet = self.loadImageCol()
+        # pdb.set_trace()
         m1 = os.path.join(self.npdir,
                           'matchedMarkCoordPair1ColSliceTrueDown.npy')
         m1 = np.load(m1)
@@ -621,56 +876,57 @@ class PointCarverTest(unittest.TestCase):
         colSlice = True
         swaped = marker.swapAndSliceMarkCoordPair(m1, m2,
                                                   viet, colSlice)
+        # pdb.set_trace()
         compimg = os.path.join(self.imagedir, 'slicedImage.png')
         compimg = np.array(Image.open(compimg))
         self.compareArrays(
             compimg, swaped, "Image slicing with mark coordinate has failed"
         )
 
-    # def test_seammarker_sliceImageWithMarkCoordPair_down_colSliceTrue(self):
-        # "test seam marker slice Image with mark coordinate pair"
-        # viet = self.loadImageCol()
-        # marker = SeamMarker(img=np.zeros((2, 2), dtype=np.uint8))
-        # coords = getCoordsDict(self.coords_down_path)
-        # colSlice = True
-        # pair = getCoordPair(self.coords_down_path, colSlice)
-        # p1 = pair[0]
-        # p2 = pair[1]
-        # coord1 = coords[p1]
-        # coord2 = coords[p2]
-        # coord1_2d = coord1[:, :2]
-        # coord2_2d = coord2[:, :2]
-        # uni1 = np.unique(coord1_2d, axis=0)
-        # uni2 = np.unique(coord2_2d, axis=0)
-        # segment = marker.sliceImageWithMarkCoordPair(viet.copy(),
-                                                     # uni1,
-                                                     # uni2,
-                                                     # colSlice)
-        # # pdb.set_trace()
-        # compimg = os.path.join(self.imagedir, 'slicedImage.png')
-        # compimg = np.array(Image.open(compimg))
-        # comp = compimg == segment
-        # self.compareArrays(compimg, 
-                           # segment, 
-                           # "Image slicing with mark coordinate has failed")
+    def test_seammarker_sliceImageWithMarkCoordPair_down_colSliceTrue(self):
+        "test seam marker slice Image with mark coordinate pair"
+        viet = self.loadImageCol()
+        marker = SeamMarker(img=np.zeros((2, 2), dtype=np.uint8))
+        coords = getCoordsDict(self.coords_down_path)
+        colSlice = True
+        isUpTo = False
+        pair = getCoordPair(self.coords_down_path, colSlice)
+        p1 = pair[0]
+        p2 = pair[1]
+        coord1 = coords[p1]
+        coord2 = coords[p2]
+        coord1_2d = coord1[:, :2]
+        coord2_2d = coord2[:, :2]
+        uni1 = np.unique(coord1_2d, axis=0)
+        uni2 = np.unique(coord2_2d, axis=0)
+        segment = marker.sliceImageWithMarkCoordPair(viet.copy(),
+                                                     uni1,
+                                                     uni2,
+                                                     colSlice, isUpTo)
+        # pdb.set_trace()
+        compimg = os.path.join(self.imagedir, 'slicedImage.png')
+        compimg = np.array(Image.open(compimg))
+        self.compareArrays(compimg,
+                           segment,
+                           "Image slicing with mark coordinate has failed")
 
-    # def test_seammarker_segmentImageWithPointListSeamCoordinate(self):
-        # colSlice=True
-        # img=self.loadImageCol()
-        # marker=SeamMarker(img=np.zeros((2, 2), dtype=np.uint8))
-        # coords = prepPointCoord(self.coords_down_path)
-        # segments=marker.segmentImageWithPointListSeamCoordinate(
-            # image=img, coords=coords)
-        # # pdb.set_trace()
-        # compsegs=self.loadSegments()
-        # message = "Segment {0} failed"
-        # compvals=[
-            # self.compareArrays(
-                # segments[i], 
-                # compsegs[i],
-                # message.format(str(i))
-            # ) for i in range(len(segments))
-        # ]
+    def test_seammarker_segmentImageWithPointListSeamCoordinate(self):
+        img = self.loadImageCol()
+        marker = SeamMarker(img=np.zeros((2, 2), dtype=np.uint8))
+        coords = prepPointCoord(self.coords_down_path)
+        segments = marker.segmentImageWithPointListSeamCoordinate(
+            image=img, coords=coords)
+        compsegs = self.loadSegments()
+        message = "Segment {0} failed"
+        # pdb.set_trace()
+        compvals = [
+            [self.compareArrays(
+                segs[i],
+                compsegs[i],
+                message.format(str(i))
+            ) for i in range(len(segs))
+            ] for direction, segs in segments.items()
+        ]
 
     def test_seammarker_getPointSeamCoordinate_down(self):
         viet = self.loadImageCol()

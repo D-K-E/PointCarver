@@ -298,66 +298,89 @@ class SeamMarker(SeamFuncs):
         # indexArray[0] == [rowPosition, colPosition, colorPosition]
         return indexArray
 
-    def prepCoords2Matching(self, coord1, coord2,
-                            colSlice: bool,
-                            isUpTo: bool):
-        "Prepare coordinates to matching"
+    def sortCoords4Matching(self, coord1, coord2,
+                            colSlice: bool):
+        "Sort coordinates with respect to column slicing"
         if colSlice is True:
             # sort by y val
             ind1 = np.argsort(coord1[:, 0])
             coord1 = coord1[ind1]
             ind2 = np.argsort(coord2[:, 0])
             coord2 = coord2[ind2]
-            #
-            if isUpTo is False:
-                # so their first values should match
-                COORD1KEEP = coord1[0, 1]  # x val
-                COORD2KEEP = coord2[0, 1]  # x val
-                coord1val = coord1[0, 0]  # y val
-                coord2val = coord2[0, 0]  # y val
-                # make sure coord1 is the one with smaller value
-                if coord1val >= coord2val:
-                    # meaning coord1 is shorter than coord2
-                    coord1, coord2 = coord2, coord1
-                    coord1val, coord2val = coord2val, coord1val
-            else:
-                # their last values should match
-                COORD1KEEP = coord1[-1, 1]  # x val
-                COORD2KEEP = coord2[-1, 1]  # x val
-                coord1val = coord1[-1, 0]  # y val
-                coord2val = coord2[-1, 0]  # y val
-
         elif colSlice is False:
             # sort by x val
             ind1 = np.argsort(coord1[:, 1])
             coord1 = coord1[ind1]
             ind2 = np.argsort(coord2[:, 1])
             coord2 = coord2[ind2]
-            #
-            if isUpTo is False:
-                COORD1KEEP = coord1[0, 0]
-                COORD2KEEP = coord2[0, 0]
-                coord1val = coord1[0, 1]
-                coord2val = coord2[0, 1]
-            else:
-                COORD1KEEP = coord1[-1, 0]
-                COORD2KEEP = coord2[-1, 0]
-                coord1val = coord1[-1, 1]
-                coord2val = coord2[-1, 1]
-                if coord2val >= coord1val:
-                    # meaning coord2 is longer than coord1
-                    coord1, coord2 = coord2, coord1
-                    coord1val, coord2val = coord2val, coord1val
+        return coord1, coord2
 
+    def getKeepAndLimitValues(self, coord1,
+                              coord2, colSlice: bool,
+                              isUpTo: bool):
+        "Get keep value and limit values to generate fill values later on"
+        if isUpTo is False:
+            axval = 0
         else:
-            raise ValueError(
-                "colSlice is {0}. It should be a boolean"
-                "value".format(colSlice)
-            )
-        # pdb.set_trace()
-
+            axval = -1
+        if colSlice is True:
+            keepval = 1
+            rangeval = 0
+        else:
+            keepval = 0
+            rangeval = 1
         #
-        return coord1, coord2, COORD1KEEP, COORD2KEEP, coord1val, coord2val
+        COORD1KEEP = coord1[axval, keepval]
+        COORD2KEEP = coord2[axval, keepval]
+        coord1val = coord1[axval, rangeval]
+        coord2val = coord2[axval, rangeval]
+        if isUpTo is False:
+            # so their first values should match
+            # make sure coord1 is the one with smaller value
+            # we'll prepend values to coord2 later on
+            if coord1val >= coord2val:
+                coord1, coord2 = coord2, coord1
+                coord1val, coord2val = coord2val, coord1val
+                COORD1KEEP, COORD2KEEP = COORD2KEEP, COORD1KEEP
+        else:
+            # their last values should match
+            # make sure coord2 is the one with smaller value
+            # making it shorter
+            # we'll append values to coord2 later on
+            if coord2val >= coord1val:
+                coord1, coord2 = coord2, coord1
+                coord1val, coord2val = coord2val, coord1val
+                COORD1KEEP, COORD2KEEP = COORD2KEEP, COORD1KEEP
+        #
+        return (coord1, coord2,
+                COORD1KEEP, COORD2KEEP,
+                coord1val, coord2val)
+
+    def prepCoords2Matching(self, coord1, coord2,
+                            colSlice: bool,
+                            isUpTo: bool):
+        "Prepare coordinates to matching"
+        assert isinstance(colSlice, bool)
+        coord1, coord2 = self.sortCoords4Matching(coord1,
+                                                  coord2,
+                                                  colSlice)
+        assert isinstance(isUpTo, bool)
+        (coord1, coord2,
+         COORD1KEEP, COORD2KEEP,
+         coord1val, coord2val) = self.getKeepAndLimitValues(coord1,
+                                                            coord2, colSlice,
+                                                            isUpTo)
+        if isUpTo is False:
+            fillvals = [i for i in range(coord2val-1, # since we prepend
+                                         # this array later on
+                                         coord1val-1, -1)]
+        else:
+            fillvals = [i for i in range(coord2val+1, coord1val+1, 1)]
+        #
+        return (coord1, coord2, 
+                COORD1KEEP, COORD2KEEP, 
+                coord1val, coord2val,
+                fillvals)
 
     def matchMarkCoordPairLength(self, coord1, coord2,
                                  colSlice: bool,
@@ -391,20 +414,22 @@ class SeamMarker(SeamFuncs):
         # col slice determines the axis of match
         (coord1, coord2,
          COORD1KEEP, COORD2KEEP,
-         coord1val, coord2val) = self.prepCoords2Matching(
+         coord1val, coord2val,
+         fillvals) = self.prepCoords2Matching(
              coord1, coord2, colSlice, isUpTo)
-        fillvals = [i for i in range(coord2val-1, coord1val-1, -1)]
         for i in fillvals:
             if colSlice is True:  # column slice
                 if isUpTo is False:
                     coord2 = np.insert(coord2, 0, [i, COORD2KEEP], axis=0)
                 else:
-                    coord2 = np.append(coord2, [i, COORD2KEEP], axis=0)
+                    coord2 = np.insert(coord2, coord2.shape[0],
+                                       [i, COORD2KEEP], axis=0)
             else:
                 if isUpTo is False:
                     coord2 = np.insert(coord2, 0, [COORD2KEEP, i], axis=0)
                 else:
-                    coord2 = np.append(coord2, [COORD2KEEP, i], axis=0)
+                    coord2 = np.insert(coord2, coord2.shape[0],
+                                       [COORD2KEEP, i], axis=0)
         return coord1, coord2
 
     def swapAndSliceMarkCoordPair(self, markCoord1, markCoord2,
@@ -451,7 +476,7 @@ class SeamMarker(SeamFuncs):
         assert markCoord1.shape[1] == 2  # [y,x], [y2,x2], etc
         assert markCoord2.shape[1] == 2
         if markCoord1.shape[0] != markCoord2.shape[0]:
-            pdb.set_trace()
+            # pdb.set_trace()
             markCoord1, markCoord2 = self.matchMarkCoordPairLength(markCoord1,
                                                                    markCoord2,
                                                                    colSlice,
@@ -752,7 +777,8 @@ class SeamMarker(SeamFuncs):
                 coord1 = pointCoordMap[point1]
                 coord2 = pointCoordMap[point2]
                 segment = self.sliceImageWithMarkCoordPair(image, coord1, 
-                                                           coord2, colSlice)
+                                                           coord2, colSlice,
+                                                           isUpTo)
                 segments.append(segment)
             #
             segment_groups[groupDirection] = segments
@@ -800,21 +826,3 @@ class SeamMarker(SeamFuncs):
                                           thresh=self.thresh,
                                           mark_color=self.mark_color,
                                           direction=self.direction)
-
-
-class DocumentSeamMarker(SeamMarker):
-    "Caching some values to facilitate seam marking per document"
-
-    def __init__(self,
-                 img: np.ndarray([], dtype=np.uint8),
-                 plist=[],
-                 thresh=10,
-                 direction='down'):
-        super().__init__(img, plist, thresh, direction)
-        self.thresh = thresh
-        self.plist = plist
-        self.direction = direction
-        self.img = img
-        self.coordinates = {}
-        self.isUpTo = None
-        self.colSlice = None
