@@ -30,7 +30,7 @@ setuptools.setup(
         "numpy",
         "scipy",
         "pillow",
-        # "PySide2"
+        "PySide2"
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
