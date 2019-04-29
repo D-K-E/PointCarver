@@ -1,0 +1,266 @@
+{
+  "0": {
+    "color": "green",
+    "size": 3,
+    "threshold": 2,
+    "direction": "left",
+    "y": 27,
+    "x": 1406,
+    "coordinates": [
+      1406,
+      27
+    ]
+  },
+  "1": {
+    "color": "green",
+    "size": 3,
+    "threshold": 3,
+    "direction": "left",
+    "y": 84,
+    "x": 1413,
+    "coordinates": [
+      1413,
+      84
+    ]
+  },
+  "2": {
+    "color": "green",
+    "size": 3,
+    "threshold": 2,
+    "direction": "left",
+    "y": 151,
+    "x": 1410,
+    "coordinates": [
+      1410,
+      151
+    ]
+  },
+  "3": {
+    "color": "green",
+    "size": 3,
+    "threshold": 3,
+    "direction": "left",
+    "y": 202,
+    "x": 1408,
+    "coordinates": [
+      1408,
+      202
+    ]
+  },
+  "4": {
+    "color": "green",
+    "size": 3,
+    "threshold": 2,
+    "direction": "left",
+    "y": 280,
+    "x": 1405,
+    "coordinates": [
+      1405,
+      280
+    ]
+  },
+  "5": {
+    "color": "red",
+    "size": 5,
+    "threshold": 3,
+    "direction": "left",
+    "y": 340,
+    "x": 1413,
+    "coordinates": [
+      1413,
+      340
+    ]
+  },
+  "6": {
+    "color": "green",
+    "size": 3,
+    "threshold": 3,
+    "direction": "left",
+    "y": 405,
+    "x": 1405,
+    "coordinates": [
+      1405,
+      405
+    ]
+  },
+  "7": {
+    "color": "green",
+    "size": 3,
+    "threshold": 3,
+    "direction": "left",
+    "y": 457,
+    "x": 1405,
+    "coordinates": [
+      1405,
+      457
+    ]
+  },
+  "8": {
+    "color": "green",
+    "size": 3,
+    "threshold": 2,
+    "direction": "left",
+    "y": 520,
+    "x": 1405,
+    "coordinates": [
+      1405,
+      520
+    ]
+  },
+  "9": {
+    "color": "green",
+    "size": 3,
+    "threshold": 2,
+    "direction": "left",
+    "y": 601,
+    "x": 1405,
+    "coordinates": [
+      1405,
+      601
+    ]
+  },
+  "10": {
+    "color": "green",
+    "size": 3,
+    "threshold": 2,
+    "direction": "left",
+    "y": 660,
+    "x": 1415,
+    "coordinates": [
+      1415,
+      660
+    ]
+  },
+  "11": {
+    "color": "green",
+    "size": 3,
+    "threshold": 2,
+    "direction": "left",
+    "y": 724,
+    "x": 1415,
+    "coordinates": [
+      1415,
+      724
+    ]
+  },
+  "12": {
+    "color": "green",
+    "size": 3,
+    "threshold": 2,
+    "direction": "left",
+    "y": 785,
+    "x": 1413,
+    "coordinates": [
+      1413,
+      785
+    ]
+  },
+  "13": {
+    "color": "white",
+    "size": 3,
+    "threshold": 4,
+    "direction": "left",
+    "y": 845,
+    "x": 1418,
+    "coordinates": [
+      1418,
+      845
+    ]
+  },
+  "14": {
+    "color": "green",
+    "size": 3,
+    "threshold": 4,
+    "direction": "left",
+    "y": 910,
+    "x": 1416,
+    "coordinates": [
+      1416,
+      910
+    ]
+  },
+  "15": {
+    "color": "red",
+    "size": 3,
+    "threshold": 4,
+    "direction": "left",
+    "y": 970,
+    "x": 1413,
+    "coordinates": [
+      1413,
+      970
+    ]
+  },
+  "16": {
+    "color": "white",
+    "size": 4,
+    "threshold": 4,
+    "direction": "left",
+    "y": 1032,
+    "x": 1409,
+    "coordinates": [
+      1409,
+      1032
+    ]
+  },
+  "17": {
+    "color": "green",
+    "size": 3,
+    "threshold": 2,
+    "direction": "left",
+    "y": 1115,
+    "x": 1412,
+    "coordinates": [
+      1412,
+      1115
+    ]
+  },
+  "18": {
+    "color": "green",
+    "size": 3,
+    "threshold": 2,
+    "direction": "left",
+    "y": 1178,
+    "x": 1414,
+    "coordinates": [
+      1414,
+      1178
+    ]
+  },
+  "19": {
+    "color": "green",
+    "size": 3,
+    "threshold": 2,
+    "direction": "left",
+    "y": 1258,
+    "x": 1416,
+    "coordinates": [
+      1416,
+      1258
+    ]
+  },
+  "20": {
+    "color": "green",
+    "size": 3,
+    "threshold": 2,
+    "direction": "left",
+    "y": 1313,
+    "x": 1416,
+    "coordinates": [
+      1416,
+      1313
+    ]
+  },
+  "21": {
+    "color": "green",
+    "size": 3,
+    "threshold": 2,
+    "direction": "left",
+    "y": 1374,
+    "x": 1416,
+    "coordinates": [
+      1416,
+      1374
+    ]
+  }
+}
