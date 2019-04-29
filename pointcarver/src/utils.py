@@ -6,11 +6,13 @@ from PySide2 import QtGui
 
 # From stack overflow
 
+
 def saveJson(path, obj):
     "Save json"
-    with open(path, 'w', 
+    with open(path, 'w',
               encoding='utf-8', newline='\n') as f:
-        json.dump(obj, f)
+        json.dump(obj, f, ensure_ascii=False, indent=2)
+
 
 def qt_image_to_array(img: QtGui.QImage):
     """ Creates a numpy array from a QImage.
@@ -44,10 +46,9 @@ def qt_image_to_array(img: QtGui.QImage):
                             ),
                      buffer=bbuffer,
                      dtype=np.uint8)
-    return arr # change rgb -> bgr
+    return arr  # change rgb -> bgr
 
 # end stack overflow
-
 
 
 def stripExt(str1: str, ext_delimiter='.') -> [str, str]:

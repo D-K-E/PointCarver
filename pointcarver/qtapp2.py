@@ -4,7 +4,7 @@
 
 
 from src.seammarker import SeamMarker
-from src.utils import readImage, readPoints, parsePoints, stripExt
+from src.utils import stripExt
 from src.utils import qt_image_to_array, saveJson
 from src.utils import shapeCoordinate
 from ui.designerOutput2 import Ui_MainWindow as UIMainWindow
@@ -15,7 +15,6 @@ import os
 import json
 import numpy as np
 import io
-import base64
 import pdb
 
 
@@ -108,6 +107,14 @@ class PointEditor(QtWidgets.QWidget):
         row = self.table.currentRow()
         data = self.pointsData.get(row)
         return row, data
+
+    def setPointHeaders(self):
+        pointProperties = ['coordinates', 'x', 'y', 'direction', 'threshold',
+                           'size', 'color']
+        self.table.setColumnCount(len(pointProperties))
+        self.table.setHorizontalHeaderLabels(
+            pointProperties
+        )
 
     def getPointDataFromWidgets(self):
         "set points and related data to widgets"
@@ -239,37 +246,37 @@ class PointEditor(QtWidgets.QWidget):
         for r in range(rowcount):
             self.pointsData[r] = {}
             # coords
-            item = self.table.itemAt(r, 0)
+            item = self.table.item(r, 0)
             item = item.text()
             if item != '':
                 item = item.strip('()')
                 item = tuple([int(i) for i in item.split(',') if i])
                 self.pointsData[r]['coordinates'] = item
             # x, y
-            item = self.table.itemAt(r, 1)
+            item = self.table.item(r, 1)
             item = item.text()
             item = int(item)
             self.pointsData[r]['x'] = item
-            item = self.table.itemAt(r, 2)
+            item = self.table.item(r, 2)
             item = item.text()
             item = int(item)
             self.pointsData[r]['y'] = item
             # direction
-            item = self.table.itemAt(r, 3)
+            item = self.table.item(r, 3)
             item = item.text()
             self.pointsData[r]['direction'] = item
             # threshold
-            item = self.table.itemAt(r, 4)
+            item = self.table.item(r, 4)
             item = item.text()
             item = int(item)
             self.pointsData[r]['threshold'] = item
             # size
-            item = self.table.itemAt(r, 5)
+            item = self.table.item(r, 5)
             item = item.text()
             item = int(item)
             self.pointsData[r]['size'] = item
             # color
-            item = self.table.itemAt(r, 6)
+            item = self.table.item(r, 6)
             item = item.text()
             self.pointsData[r]['color'] = item
 
@@ -284,6 +291,9 @@ class PointEditor(QtWidgets.QWidget):
     def clearData(self):
         self.pointsData = {}
         self.table.clearContents()
+        rowc = self.table.rowCount()
+        for i in range(rowc, -1, -1):
+            self.table.removeRow(i)
 
 
 class SceneCanvas(QtWidgets.QGraphicsScene):
@@ -374,13 +384,11 @@ class AppWindowFinal(AppWindowInit):
                        "magenta": QtCore.Qt.magenta,
                        "white": QtCore.Qt.white}
         combovals = list(self.colors.keys())
-        self.markColorComboBox.addItems(combovals)
         self.pointColorComboBox.addItems(combovals)
         self.pointColorComboBox.setCurrentText("red")
         self.directions = ['down', 'up', 'left', 'right']
         self.pointDirectionComboBox.addItems(self.directions)
         self.pointDirectionComboBox.setCurrentText("down")
-        self.carveDirComboBox.addItems(self.directions)
         pointProperties = ['coordinates', 'x', 'y', 'direction', 'threshold',
                            'size', 'color']
         self.pointsTable.setColumnCount(len(pointProperties))
@@ -404,34 +412,24 @@ class AppWindowFinal(AppWindowInit):
         self.tableWidget.setHorizontalHeaderLabels(["image files",
                                                     "point files"])
 
-        # hide show widgets
-        self.globalThreshCBox.setCheckState(QtCore.Qt.Checked)
-        self.globalCarveDirCBox.setCheckState(QtCore.Qt.Checked)
-        self.globalMarkColorCBox.setCheckState(QtCore.Qt.Checked)
-
         # Main Window Events
         self.main_window.setWindowTitle("Seam Marker using Points")
         self.main_window.closeEvent = self.closeApp
 
-        self.globalCarveDirCBox.stateChanged.connect(
-            self.showGlobalCarveDir)
-        self.globalThreshCBox.stateChanged.connect(
-            self.showGlobalThresh)
-        self.globalMarkColorCBox.stateChanged.connect(
-            self.showGlobalMarkColor)
-
         # Buttons
         self.importBtn.clicked.connect(self.importImagePoints)
+        self.addImageBtn.clicked.connect(self.addImage)
         self.loadBtn.clicked.connect(self.loadImage)
         self.drawPointsBtn.clicked.connect(self.drawEditorPoints)
         self.carveBtn.clicked.connect(self.markSeamsOnImage)
         self.savePointsBtn.clicked.connect(self.savePoints)
         self.saveCoordinatesBtn.clicked.connect(self.saveSeamCoordinates)
         self.saveBtn.clicked.connect(self.saveSegments)
-        # self.saveAllBtn.clicked.connect(self.saveAll)
+        self.saveAllBtn.clicked.connect(self.saveAll)
         self.addPoint2ImageBtn.clicked.connect(self.importPoint)
         self.openPointBtn.clicked.connect(self.setPoints2PointEditor)
         self.deletePointBtn.clicked.connect(self.pointEditor.removeRow)
+        self.removeImagePointBtn.clicked.connect(self.removeImagePointRow)
 
     def getPointPathFromImagePath(self, imagePath):
         "Get point file from image path"
@@ -456,12 +454,23 @@ class AppWindowFinal(AppWindowInit):
             res = pointPath
         return res
 
+    def addImage(self):
+        "Add image to table"
+        fdir = QtWidgets.QFileDialog.getOpenFileNames(
+            self.centralwidget,
+            "Select Images", "", "Images (*.png *.jpg)")
+        if fdir:
+            for impath in fdir[0]:
+                imageId = self.addImage2Table(impath)
+
     def addImage2Table(self, imagePath):
         "Add image path to table"
         im = {}
         im['path'] = imagePath
         im['name'] = os.path.basename(imagePath)
         item = QtWidgets.QTableWidgetItem(im['name'])
+        item.setFlags(QtCore.Qt.ItemIsEditable)
+        item.setFlags(QtCore.Qt.ItemIsSelectable)
         rowcount = self.tableWidget.rowCount()
         self.tableWidget.insertRow(rowcount)
         imrow = rowcount
@@ -474,6 +483,13 @@ class AppWindowFinal(AppWindowInit):
         # self.tableWidget.sortItems(0)  # sort from column 0
         return index
 
+    def clearImagePointTable(self):
+        "Clear contents of the image point table"
+        rowc = self.tableWidget.rowCount()
+        self.tableWidget.clearContents()
+        for i in range(rowc, -1, -1):
+            self.tableWidget.removeRow(i)
+
     def addPointFile2Table(self, imageId,
                            pointFilePath: str):
         "Add point file 2 given image"
@@ -482,6 +498,8 @@ class AppWindowFinal(AppWindowInit):
         imPoint['points']['path'] = pointFilePath
         imPoint['points']['name'] = os.path.basename(pointFilePath)
         item = QtWidgets.QTableWidgetItem(imPoint['points']['name'])
+        item.setFlags(QtCore.Qt.ItemIsEditable)
+        item.setFlags(QtCore.Qt.ItemIsSelectable)
         imageItem = self.tableWidget.itemFromIndex(imageId)
         imagerow = self.tableWidget.row(imageItem)
         imagecol = self.tableWidget.column(imageItem)
@@ -490,10 +508,18 @@ class AppWindowFinal(AppWindowInit):
         itemindex = self.tableWidget.indexFromItem(item)
         imPoint['points']['index'] = itemindex
 
+    def removeImagePointRow(self):
+        "Remove selected row"
+        currentRow = self.tableWidget.currentRow()
+        item = self.tableWidget.item(currentRow, 0)
+        itemindex = self.tableWidget.indexFromItem(item)
+        self.tableWidget.removeRow(currentRow)
+        self.imagePoint.pop(itemindex)
+
     def importImagePoints(self):
         "Import images and points"
         # import images first then check if points exist
-        self.tableWidget.clearContents()
+        self.clearImagePointTable()
         fdir = QtWidgets.QFileDialog.getOpenFileNames(
             self.centralwidget,
             "Select Images", "", "Images (*.png *.jpg)")
@@ -589,6 +615,12 @@ class AppWindowFinal(AppWindowInit):
 
     # save events
 
+    def prepPoints(self, points: dict):
+        "Prepare points"
+        for i, pointsData in points.items():
+            if "seamCoordinates" in pointsData:
+                pointsData.pop("seamCoordinates")
+
     def savePoints(self):
         "Save points to system"
         imname = self.getImageNameFromId()
@@ -601,8 +633,9 @@ class AppWindowFinal(AppWindowInit):
         fpath = fileName[0]
         if fpath:
             with open(fpath, "w", encoding='utf-8', newline='\n') as f:
-                json.dump(self.pointEditor.pointsData,
-                          f, ensure_ascii=False, indent=2)
+                points = self.pointEditor.pointsData.copy()
+                self.prepPoints(points)
+                json.dump(points, f, ensure_ascii=False, indent=2)
 
     def saveSeamCoordinates(self):
         "Save seam coordinates to a file location"
@@ -648,6 +681,29 @@ class AppWindowFinal(AppWindowInit):
                     pilim = Image.fromarray(segment)
                     pilim.save(fname)
 
+    def saveAll(self):
+        "Save all"
+        segments = self.segmentImageWithSeamCoordinate()
+        coords = self.prepCoords(self.coords)
+        imname = self.getImageNameFromId()
+        coordsname = imname + "-coordinates.json"
+        fdir = QtWidgets.QFileDialog.getExistingDirectory(
+            self.centralwidget,
+            "Choose a save directory",
+            self.assetsdir,
+            QtWidgets.QFileDialog.ShowDirsOnly
+            | QtWidgets.QFileDialog.DontResolveSymlinks)
+        if fdir:
+            coordpath = os.path.join(fdir, coordsname)
+            saveJson(coordpath, coords)
+            for groupDirection, segs in segments.items():
+                for i, seg in enumerate(segs):
+                    fname = imname + "-seg-" + groupDirection + "-"
+                    fname += str(i) + ".png"
+                    segname = os.path.join(fdir, fname)
+                    pilim = Image.fromarray(seg)
+                    pilim.save(segname)
+
     def setPoints2PointEditor(self):
         "Open a point file in point editor"
         imageId = self.getImageIdFromTable()
@@ -660,43 +716,22 @@ class AppWindowFinal(AppWindowInit):
             self.pointEditor.setPointsData2Table(pointsData)
 
     def resetSceneState(self):
-        # self.image = None
         self.pixmapImage = QtGui.QPixmap()
         self.scene.clear()
 
+    def copyPointData(self, pointData: dict):
+        "copy point data"
+        newPointData = {}
+        for key, val in pointData.items():
+            newPointData[key] = val
+        return newPointData
+
     def getMarkerParams(self):
         "Get seam marker parameters from point editor and ui"
-        points = self.pointEditor.pointsData.copy()
-        threshCheckVal = False
-        if self.globalThreshCBox.isChecked():
-            globalThreshval = self.globalThreshSpinBox.value()
-            threshCheckVal = True
-            for i, p in points.items():
-                p['threshold'] = globalThreshval
-        #
-        carveCheckVal = False
-        if self.globalCarveDirCBox.isChecked():
-            globalDirect = self.carveDirComboBox.currentText()
-            carveCheckVal = True
-            for i, p in points.items():
-                p['direction'] = globalDirect
-        markCheckVal = False
-        if self.globalMarkColorCBox.isChecked():
-            globalMarkColor = self.markColorComboBox.currentText()
-            markCheckVal = True
-            for i, p in points.items():
-                p['color'] = globalMarkColor
-        #
+        pointData = self.pointEditor.pointsData.copy()
+        points = self.copyPointData(pointData)
         img = self.getSceneImage()
-        return points, img, threshCheckVal, carveCheckVal, markCheckVal
-
-    def getGlobalMarkColor(self):
-        "Get mark color from ui"
-        markColor = self.markColorComboBox.currentText()  # gives text val
-        markColor = self.colors[markColor]  # gives a QGlobalColor object
-        markColor = QtGui.QColor(markColor)
-        markColor = list(markColor.getRgb()[:3])
-        return markColor
+        return points, img
 
     def getMarkColor(self, color: str):
         "Get mark color from color dict"
@@ -718,11 +753,9 @@ class AppWindowFinal(AppWindowInit):
     def markPointSeamsOnImage(self):
         "Mark seams on image"
         params = self.getMarkerParams()
-        points = params[0]
+        points = params[0].copy()
         image = params[1].copy()
-        threshCheckVal = params[2]
-        carveCheckVal = params[3]
-        marker = SeamMarker(image.copy(), plist=[])
+        marker = SeamMarker(image, plist=[])
         for i, pointData in points.items():
             x = pointData['x']
             y = pointData['y']
@@ -783,10 +816,8 @@ class AppWindowFinal(AppWindowInit):
     def segmentImageWithSeamCoordinate(self):
         "Segment image with point coordinates"
         params = self.getMarkerParams()
-        points = params[0]
+        points = params[0].copy()
         image = params[1].copy()
-        threshCheckVal = params[2]
-        carveCheckVal = params[3]
         marker = SeamMarker(image.copy(), plist=[])
         if self.coords is None:
             self.getSeamCoordinates()
@@ -802,25 +833,6 @@ class AppWindowFinal(AppWindowInit):
             pointData['seamCoordinates'] = coord.tolist()
         return coords
 
-    def showGlobalThresh(self):
-        if self.globalThreshCBox.isChecked():
-            self.globalThreshSpinBox.show()
-        else:
-            self.globalThreshSpinBox.hide()
-
-    def showGlobalCarveDir(self):
-        if self.globalCarveDirCBox.isChecked():
-            self.carveDirComboBox.show()
-        else:
-            self.carveDirComboBox.hide()
-
-    def showGlobalMarkColor(self):
-        if self.globalMarkColorCBox.isChecked():
-            self.markColorComboBox.show()
-        else:
-            self.markColorComboBox.hide()
-
-    # Standard gui
     def closeApp(self, event):
         "Close application"
         reply = QtWidgets.QMessageBox.question(

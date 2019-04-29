@@ -761,15 +761,15 @@ class SeamMarker(SeamFuncs):
         for groupDirection, pointDataCoords in groups.items():
             # pdb.set_trace()
             colSlice, isUpTo = self.prepDirection(groupDirection)
-            plist = [(pointData['x'],
-                      pointData['y']) for pointData in pointDataCoords]
+            plist = [(pointData['y'],
+                      pointData['x']) for pointData in pointDataCoords]
             pointCoordMap = {
-                (pointData['x'],
-                 pointData['y']
+                (pointData['y'],
+                 pointData['x']
                  ):pointData['seamCoordinates'] for pointData in pointDataCoords
             }
             pairs = self.makePairsFromPoints(plist, colSlice,
-                                             isXFirst=True)
+                                             isXFirst=False)
             segments = []
             for pair in pairs:
                 point1 = pair[0]

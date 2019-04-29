@@ -572,7 +572,6 @@ class PointCarverTest(unittest.TestCase):
         self.compareArrays(rowslice, compimg,
                            "rowslice is not the same for sliced image"
                            )
-        # pdb.set_trace()
 
     def test_seammarker_getColSliceOnPointIsUpToFalse(self):
         viet = self.loadImageCol()

@@ -218,25 +218,25 @@
   "18": {
     "color": "green",
     "size": 3,
-    "threshold": 2,
+    "threshold": 3,
     "direction": "left",
-    "y": 1178,
+    "y": 1160,
     "x": 1414,
     "coordinates": [
       1414,
-      1178
+      1160
     ]
   },
   "19": {
-    "color": "green",
+    "color": "magenta",
     "size": 3,
-    "threshold": 2,
+    "threshold": 3,
     "direction": "left",
-    "y": 1258,
+    "y": 1225,
     "x": 1416,
     "coordinates": [
       1416,
-      1258
+      1225
     ]
   },
   "20": {
