@@ -21,13 +21,16 @@ all of those requirements can be installed with following:
 
 - :code:`cd PointCarver`
 
-- :code:`conda create --name pointcarver --file spec-file.txt`
-
-Then assuming you are in the :code:`PointCarver` directory to run the application simply do:
+- :code:`conda create --name pointcarver`
 
 - :code:`conda activate pointcarver`
 
-- :code:`python qtapp.py`
+- :code:`pip install .`
+
+Then assuming you are in the main :code:`PointCarver` directory to run the
+application simply do:
+
+- :code:`python pointcarver/qtapp.py`
 
 
 Usage
