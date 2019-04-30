@@ -3,10 +3,10 @@
 # No warranties, see LICENSE
 
 
-from libs.seammarker import SeamMarker
-from src.utils import stripExt
-from src.utils import qt_image_to_array, saveJson
-from src.utils import shapeCoordinate
+from libs.seammarker.seammarker.seammarker import SeamMarker
+from libs.seammarker.seammarker.utils import stripExt
+from libs.seammarker.seammarker.utils import saveJson
+from libs.seammarker.seammarker.utils import shapeCoordinate
 from ui.designerOutput2 import Ui_MainWindow as UIMainWindow
 from PIL import Image, ImageQt
 from PySide2 import QtGui, QtCore, QtWidgets
@@ -20,16 +20,24 @@ import pdb
 
 # some utility function related to interface
 
-def img2str(img: Image) -> str:
-    f = io.BytesIO()
-    imbin = img.save(f, format='PNG')
-    imbin = f.getvalue()
-    return str(imbin, 'latin1', 'strict')
 
-
-def str2img(imdata: str, mode: str, size: (int, int)):
-    imbyte = bytes(imdata, 'latin1', 'strict')
-    return Image.frombytes(mode=mode, size=size, data=imbyte)
+def qt_image_to_array(qimage: QtGui.QImage) -> np.ndarray:
+    """
+    Convert qimage to numpy array
+    
+    Code adapted from SO:
+    https://stackoverflow.com/a/1756587/7330813
+    """
+    bio = io.BytesIO()
+    bfr = QtCore.QBuffer()
+    bfr.open(QtCore.QIODevice.ReadWrite)
+    qimage.save(bfr, 'PNG')
+    bytearr = bfr.data()
+    bio.write(bytearr.data())
+    bfr.close()
+    bio.seek(0)
+    img = Image.open(bio)
+    return np.array(img)
 
 
 class AppWindowInit(UIMainWindow):
@@ -743,9 +751,8 @@ class AppWindowFinal(AppWindowInit):
     def getSceneImage(self) -> np.ndarray:
         "Get scene image from scene canvas for marking"
         image = self.scene.image.copy()
-        rgb32image = image.toImage().convertToFormat(QtGui.QImage.Format_RGB32)
+        rgb32image = image.toImage()
         imarr = qt_image_to_array(rgb32image)
-        imarr = imarr.astype(np.uint8)
         if imarr.shape[2] > 3:
             imarr = imarr[:, :, :3]
         return imarr
@@ -774,14 +781,8 @@ class AppWindowFinal(AppWindowInit):
     def markSeamsOnImage(self):
         self.resetSceneImage()
         markedImage, self.coords = self.markPointSeamsOnImage()
-        height, width, channel = markedImage.shape
-        bytesPerLine = width * channel
-        qimage = QtGui.QImage(markedImage.data,
-                              width,
-                              height,
-                              bytesPerLine,
-                              QtGui.QImage.Format_RGB888)
-        qimage = qimage.rgbSwapped()
+        img = Image.fromarray(markedImage)
+        qimage =  ImageQt.ImageQt(img)
         pixmap = QtGui.QPixmap.fromImage(qimage)
         self.pixmapImage = pixmap.copy()
         self.renderScenePoints()
