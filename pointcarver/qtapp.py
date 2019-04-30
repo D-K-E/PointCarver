@@ -3,7 +3,7 @@
 # No warranties, see LICENSE
 
 
-from src.seammarker import SeamMarker
+from libs.seammarker import SeamMarker
 from src.utils import stripExt
 from src.utils import qt_image_to_array, saveJson
 from src.utils import shapeCoordinate
