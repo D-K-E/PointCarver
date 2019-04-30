@@ -16,7 +16,7 @@ setuptools.setup(
     author='Kaan Eraslan',
     python_requires='>=3.6.0',
     author_email="kaaneraslan@gmail.com",
-    description="Select points and mark seams through gui",
+    description="core lib for marking seams on images",
     long_description=long_desc,
     long_description_content_type="text/markdown",
     license=license_str,
