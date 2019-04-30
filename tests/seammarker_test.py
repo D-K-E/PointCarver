@@ -4,7 +4,7 @@
 # Tests the main functionality of point carver
 
 
-from pointcarver.src.seammarker import SeamMarker
+from pointcarver.lib.seammarker import SeamMarker
 from pointcarver.src.utils import readImage, readPoints, parsePoints, stripExt
 from pointcarver.src.utils import qt_image_to_array
 from pointcarver.src.utils import shapeCoordinate

@@ -4,10 +4,12 @@
 # Tests the main functionality of point carver
 
 
-from pointcarver.src.seammarker import SeamMarker
-from pointcarver.src.utils import readImage, readPoints, parsePoints, stripExt
-from pointcarver.src.utils import qt_image_to_array
-from pointcarver.src.utils import shapeCoordinate
+from pointcarver.libs.seammarker.seammarker.seammarker import SeamMarker
+from pointcarver.libs.seammarker.seammarker.utils import (readImage, 
+                                                          readPoints,
+                                                          parsePoints, 
+                                                          stripExt,
+                                                          shapeCoordinate)
 from PIL import Image, ImageQt, ImageOps
 import unittest
 import numpy as np
