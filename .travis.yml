@@ -26,4 +26,4 @@ install:
   - pip install .
 
 script:
-    - python tests/seammarker_test.py
+    - python pointcarver/libs/seammarker/tests/seammarker_test.py
