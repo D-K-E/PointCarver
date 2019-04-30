@@ -1,5 +1,5 @@
 # PointCarver
-Easy to use Seam Carver for images
+Easy to use Seam Marker for images
 
 
 ### Status
