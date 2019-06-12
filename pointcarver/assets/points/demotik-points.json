@@ -108,15 +108,15 @@
     ]
   },
   "9": {
-    "color": "green",
+    "color": "white",
     "size": 3,
     "threshold": 2,
     "direction": "left",
-    "y": 601,
+    "y": 580,
     "x": 1405,
     "coordinates": [
       1405,
-      601
+      580
     ]
   },
   "10": {
